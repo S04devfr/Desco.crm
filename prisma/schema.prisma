@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,155 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Users Model - Multi-user support with RBAC
 model User {
-  id        Int     @id @default(autoincrement())
-  email     String  @unique
-  password  String  // bcrypt hashed
-  fullName  String
-  role      String  @default("manager") // "admin" or "manager"
-  active    Boolean @default(true)
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  fullName  String?
+  role      String   @default("manager")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relations
-  deals     Deal[]
-  tasks     Task[]
-  expenses  Expense[]
-  auditLogs AuditLog[]
-
-  @@map("users")
-}
-
-// Clients Model - Customer/Contact management
-model Client {
-  id        Int     @id @default(autoincrement())
-  name      String
-  phone     String  @unique
-  email     String?
-  region    String? // Viloyat (Region)
-  address   String?
-  notes     String? // Follow-up notes
-  createdBy Int
-  updatedBy Int?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  deals     Deal[]
-
-  @@map("clients")
-}
-
-// Deals Model - Sales Pipeline/Funnel
-model Deal {
-  id                  Int     @id @default(autoincrement())
-  clientId            Int
-  client              Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  
-  // Deal Information
-  productName         String
-  contractAmount      Float   // Total contract amount
-  downPayment         Float   @default(0) // Boshlang'ich to'lov (Initial payment)
-  status              String  @default("yangi_lid") // "yangi_lid", "aloqaga_chiqildi", "yetkazilmoqda", "qarzdorlik_bor", "muvaffaqiyatli"
-  
-  // Debt Tracking
-  totalReceived       Float   @default(0) // Total amount received so far
-  remainingDebt       Float   @default(0) // Calculated: contractAmount - totalReceived
-  debtStatus          String  @default("aktiv") // "aktiv", "to'langan"
-  
-  manager             User    @relation(fields: [managerId], references: [id])
-  managerId           Int
-  
-  createdBy           Int
-  updatedBy           Int?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  // Relations
-  expenses            Expense[]
-  payments            Payment[]
-
-  @@index([clientId])
-  @@index([managerId])
-  @@map("deals")
-}
-
-// Payments Model - Track partial/full payments
-model Payment {
-  id        Int     @id @default(autoincrement())
-  dealId    Int
-  deal      Deal    @relation(fields: [dealId], references: [id], onDelete: Cascade)
-  
-  amount    Float
-  paymentDate DateTime @default(now())
-  notes     String?
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([dealId])
-  @@map("payments")
-}
-
-// Expenses Model - Track logistics & business expenses
-model Expense {
-  id              Int     @id @default(autoincrement())
-  dealId          Int
-  deal            Deal    @relation(fields: [dealId], references: [id], onDelete: Cascade)
-  
-  driverName      String? // Shofyor
-  deliveryCost    Float   @default(0) // Yo'l kiro
-  miscExpenses    Float   @default(0) // Other expenses
-  totalExpense    Float   @default(0) // Calculated: deliveryCost + miscExpenses
-  
-  userId          Int
-  user            User    @relation(fields: [userId], references: [id])
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([dealId])
-  @@index([userId])
-  @@map("expenses")
-}
-
-// Tasks Model - Task management & notifications
-model Task {
-  id          Int     @id @default(autoincrement())
-  title       String
-  description String?
-  dueDate     DateTime // Task due date
-  dueTime     String? // Time in HH:MM format
-  
-  assignedTo  Int
-  user        User    @relation(fields: [assignedTo], references: [id])
-  
-  completed   Boolean @default(false)
-  completedAt DateTime?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([assignedTo])
-  @@index([dueDate])
-  @@map("tasks")
-}
-
-// Audit Log Model - Track all changes (Admin compliance)
-model AuditLog {
-  id        Int     @id @default(autoincrement())
-  userId    Int
-  user      User    @relation(fields: [userId], references: [id])
-  
-  action    String  // "CREATE", "UPDATE", "DELETE"
-  entity    String  // "Deal", "Client", "Expense"
-  entityId  Int
-  changes   String? // JSON string of what changed
-  
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([createdAt])
-  @@map("audit_logs")
 }
