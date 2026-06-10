@@ -1,0 +1,92 @@
+<!-- TOP BAR -->
+<header class="bg-white shadow-sm border-b border-gray-200">
+    <div class="px-8 py-4 flex justify-between items-center">
+        <!-- SEARCH BAR -->
+        <div class="flex-1 max-w-md">
+            <div class="relative">
+                <input type="text" id="globalSearch" placeholder="Qidirish... (Ismi, telefon, order ID)" 
+                    class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <i class="fas fa-search absolute right-3 top-2.5 text-gray-400"></i>
+            </div>
+            <!-- Search Results Dropdown -->
+            <div id="searchResults" class="absolute mt-1 w-96 bg-white border border-gray-200 rounded-lg shadow-lg hidden z-10 max-h-96 overflow-y-auto"></div>
+        </div>
+        
+        <!-- RIGHT SIDE -->
+        <div class="flex items-center gap-6 ml-6">
+            <!-- NOTIFICATIONS -->
+            <div class="relative">
+                <button id="notificationBtn" class="relative text-gray-600 hover:text-blue-600 transition">
+                    <i class="fas fa-bell text-xl"></i>
+                    <span id="notificationBadge" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                </button>
+                <!-- Notification Dropdown -->
+                <div id="notificationDropdown" class="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg hidden z-10">
+                    <div class="p-4 border-b border-gray-200">
+                        <h3 class="font-semibold">📢 Bildirishnomalar</h3>
+                    </div>
+                    <div id="notificationList" class="max-h-64 overflow-y-auto">
+                        <div class="p-4 text-gray-500 text-center text-sm">Bildirishnoma yo'q</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- TODAY'S TASKS -->
+            <div class="relative">
+                <button id="tasksBtn" class="relative text-gray-600 hover:text-blue-600 transition">
+                    <i class="fas fa-tasks text-xl"></i>
+                    <span id="taskBadge" class="absolute -top-2 -right-2 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                </button>
+                <!-- Tasks Dropdown -->
+                <div id="tasksDropdown" class="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg hidden z-10">
+                    <div class="p-4 border-b border-gray-200">
+                        <h3 class="font-semibold">📋 Bugungi Vazifalar</h3>
+                    </div>
+                    <div id="tasksList" class="max-h-64 overflow-y-auto">
+                        <div class="p-4 text-gray-500 text-center text-sm">Vazifa yo'q</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- USER MENU -->
+            <div class="relative">
+                <button id="userMenuBtn" class="flex items-center gap-2 text-gray-700 hover:text-blue-600">
+                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+                        <%= user.fullName.charAt(0) %>
+                    </div>
+                    <span class="text-sm font-medium"><%= user.fullName %></span>
+                    <i class="fas fa-chevron-down text-xs"></i>
+                </button>
+                <!-- User Menu Dropdown -->
+                <div id="userMenuDropdown" class="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg hidden z-10">
+                    <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">👤 Profil</a>
+                    <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">⚙️ Sozlamalar</a>
+                    <hr class="my-2">
+                    <button onclick="logout()" class="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50">🚪 Chiqish</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<script>
+// Toggle dropdowns
+document.getElementById('notificationBtn').addEventListener('click', () => {
+    document.getElementById('notificationDropdown').classList.toggle('hidden');
+});
+
+document.getElementById('tasksBtn').addEventListener('click', () => {
+    document.getElementById('tasksDropdown').classList.toggle('hidden');
+});
+
+document.getElementById('userMenuBtn').addEventListener('click', () => {
+    document.getElementById('userMenuDropdown').classList.toggle('hidden');
+});
+
+// Close dropdowns on outside click
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#notificationBtn')) document.getElementById('notificationDropdown').classList.add('hidden');
+    if (!e.target.closest('#tasksBtn')) document.getElementById('tasksDropdown').classList.add('hidden');
+    if (!e.target.closest('#userMenuBtn')) document.getElementById('userMenuDropdown').classList.add('hidden');
+});
+</script>
