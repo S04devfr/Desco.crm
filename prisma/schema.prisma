@@ -15,4 +15,73 @@ model User {
   role      String   @default("manager")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  deals    Deal[]
+  tasks    Task[]
+  expenses Expense[]
+  clients  Client[]
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String?
+  email     String?
+  company   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerId Int?
+  owner   User?  @relation(fields: [ownerId], references: [id])
+
+  deals Deal[]
+}
+
+model Deal {
+  id          Int      @id @default(autoincrement())
+  productName String
+  amount      Float    @default(0)
+  paidAmount  Float    @default(0)
+  status      String   @default("new")
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clientId Int?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  managerId Int?
+  manager   User? @relation(fields: [managerId], references: [id])
+
+  tasks Task[]
+}
+
+model Expense {
+  id          Int      @id @default(autoincrement())
+  description String
+  amount      Float    @default(0)
+  category    String   @default("other")
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  createdById Int?
+  createdBy   User? @relation(fields: [createdById], references: [id])
+}
+
+model Task {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  dueDate     DateTime?
+  dueTime     String?
+  completed   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  assignedToId Int?
+  assignedTo   User? @relation(fields: [assignedToId], references: [id])
+
+  dealId Int?
+  deal   Deal? @relation(fields: [dealId], references: [id])
 }

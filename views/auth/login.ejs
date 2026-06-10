@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kirish - DESCO CRM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body class="bg-gradient-to-br from-blue-700 to-blue-900 min-h-screen flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 flex items-center justify-center gap-2">
+                <i class="fas fa-chart-line text-blue-600"></i> DESCO CRM
+            </h1>
+            <p class="text-gray-500 mt-2">Hisobingizga kiring</p>
+        </div>
+
+        <div id="errorBox" class="hidden mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm"></div>
+
+        <form id="loginForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" id="email" name="email" required
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Parol</label>
+                <input type="password" id="password" name="password" required
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button type="submit" class="w-full btn-primary">Kirish</button>
+        </form>
+
+        <p class="text-center text-sm text-gray-500 mt-6">
+            Akkaunt yo'qmi? <a href="/register" class="text-blue-600 font-medium hover:underline">Ro'yxatdan o'tish</a>
+        </p>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorBox = document.getElementById('errorBox');
+            errorBox.classList.add('hidden');
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    errorBox.textContent = data.message || 'Xatolik yuz berdi';
+                    errorBox.classList.remove('hidden');
+                    return;
+                }
+
+                window.location.href = '/';
+            } catch (error) {
+                errorBox.textContent = 'Server bilan bog\'lanishda xatolik';
+                errorBox.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
