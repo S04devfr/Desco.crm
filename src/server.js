@@ -16,7 +16,13 @@ const app = express();
 // ============================================
 
 // Security middleware
-app.use(helmet());
+// CSP and HSTS are disabled because the views rely on inline <script> tags
+// and CDN-hosted assets (Tailwind, Font Awesome, Chart.js), and HSTS would
+// force the browser to upgrade localhost to HTTPS on future visits.
+app.use(helmet({
+  contentSecurityPolicy: false,
+  hsts: false
+}));
 app.use(cors());
 
 // Body parser middleware
