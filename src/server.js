@@ -84,10 +84,16 @@ app.get('/', (req, res) => {
 });
 
 app.get('/login', (req, res) => {
+  if (req.session.userId) {
+    return res.redirect('/');
+  }
   res.render('auth/login');
 });
 
 app.get('/register', (req, res) => {
+  if (req.session.userId) {
+    return res.redirect('/');
+  }
   res.render('auth/register');
 });
 
