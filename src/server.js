@@ -89,6 +89,34 @@ app.get('/', (req, res) => {
   res.render('dashboard/index', { user: req.session.user });
 });
 
+app.get('/deals', (req, res) => {
+  if (!req.session.userId) {
+    return res.redirect('/login');
+  }
+  res.render('deals/index', { user: req.session.user });
+});
+
+app.get('/clients', (req, res) => {
+  if (!req.session.userId) {
+    return res.redirect('/login');
+  }
+  res.render('clients/index', { user: req.session.user });
+});
+
+app.get('/expenses', (req, res) => {
+  if (!req.session.userId) {
+    return res.redirect('/login');
+  }
+  res.render('expenses/index', { user: req.session.user });
+});
+
+app.get('/tasks', (req, res) => {
+  if (!req.session.userId) {
+    return res.redirect('/login');
+  }
+  res.render('tasks/index', { user: req.session.user });
+});
+
 app.get('/login', (req, res) => {
   if (req.session.userId) {
     return res.redirect('/');

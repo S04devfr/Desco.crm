@@ -1,0 +1,111 @@
+<%- include('../layouts/base', {
+    title: 'Vazifalar - DESCO CRM',
+    body: `
+    <div class="mb-8 flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">📋 Vazifalar</h1>
+            <p class="text-gray-600 mt-1">Sizning vazifalaringiz</p>
+        </div>
+    </div>
+
+    <!-- ADD TASK FORM -->
+    <div class="card-shadow mb-8">
+        <h3 class="text-lg font-bold text-gray-800 mb-4">➕ Yangi vazifa qo'shish</h3>
+        <form id="taskForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <input type="text" name="title" placeholder="Sarlavha" required class="px-4 py-2 border border-gray-300 rounded-lg md:col-span-2">
+            <input type="date" name="dueDate" class="px-4 py-2 border border-gray-300 rounded-lg">
+            <input type="time" name="dueTime" class="px-4 py-2 border border-gray-300 rounded-lg">
+            <button type="submit" class="btn-primary md:col-span-4">Qo'shish</button>
+        </form>
+    </div>
+
+    <!-- TASKS TABLE -->
+    <div class="card-shadow">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="border-b border-gray-200">
+                    <th class="py-2 px-3">ID</th>
+                    <th class="py-2 px-3">Sarlavha</th>
+                    <th class="py-2 px-3">Sana</th>
+                    <th class="py-2 px-3">Vaqt</th>
+                    <th class="py-2 px-3">Holat</th>
+                    <th class="py-2 px-3">Amal</th>
+                </tr>
+            </thead>
+            <tbody id="tasksTableBody">
+                <tr><td colspan="6" class="py-4 text-center text-gray-500">Yuklanmoqda...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        async function loadTasks() {
+            try {
+                const response = await fetch('/api/tasks');
+                const tasks = await response.json();
+                const tbody = document.getElementById('tasksTableBody');
+
+                if (!Array.isArray(tasks) || tasks.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-gray-500">Vazifalar topilmadi</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = tasks.map(task => \`
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="py-2 px-3">#\${task.id}</td>
+                        <td class="py-2 px-3">\${task.title}</td>
+                        <td class="py-2 px-3">\${task.dueDate ? new Date(task.dueDate).toLocaleDateString('uz-UZ') : '-'}</td>
+                        <td class="py-2 px-3">\${task.dueTime || '-'}</td>
+                        <td class="py-2 px-3">\${task.completed ? '<span class="badge-success">Bajarildi</span>' : '<span class="badge-warning">Kutilmoqda</span>'}</td>
+                        <td class="py-2 px-3">\${task.completed ? '' : '<button onclick="completeTask(' + task.id + ')" class="px-3 py-1 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200 transition">✓ Tugatish</button>'}</td>
+                    </tr>
+                \`).join('');
+            } catch (error) {
+                console.error('Tasks loading error:', error);
+            }
+        }
+
+        async function completeTask(taskId) {
+            try {
+                await fetch('/api/tasks/' + taskId + '/complete', { method: 'PATCH' });
+                showToast('✅ Vazifa tugatildi!', 'success');
+                loadTasks();
+            } catch (error) {
+                console.error('Error completing task:', error);
+            }
+        }
+
+        document.getElementById('taskForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const data = {
+                title: form.title.value,
+                dueDate: form.dueDate.value || undefined,
+                dueTime: form.dueTime.value || undefined
+            };
+
+            try {
+                const response = await fetch('/api/tasks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    showToast(err.message || 'Xatolik yuz berdi', 'error');
+                    return;
+                }
+
+                form.reset();
+                showToast('✅ Vazifa qo\\'shildi!', 'success');
+                loadTasks();
+            } catch (error) {
+                console.error('Create task error:', error);
+            }
+        });
+
+        loadTasks();
+    </script>
+    `
+}) %>

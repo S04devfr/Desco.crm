@@ -1,0 +1,125 @@
+<%- include('../layouts/base', {
+    title: 'Sdelkalar - DESCO CRM',
+    body: `
+    <div class="mb-8 flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">🚀 Sdelkalar</h1>
+            <p class="text-gray-600 mt-1">Barcha sotuv sdelkalari</p>
+        </div>
+    </div>
+
+    <!-- ADD DEAL FORM -->
+    <div class="card-shadow mb-8">
+        <h3 class="text-lg font-bold text-gray-800 mb-4">➕ Yangi sdelka qo'shish</h3>
+        <form id="dealForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <input type="text" name="productName" placeholder="Mahsulot nomi" required class="px-4 py-2 border border-gray-300 rounded-lg">
+            <input type="number" name="amount" placeholder="Summa" required class="px-4 py-2 border border-gray-300 rounded-lg">
+            <input type="number" name="paidAmount" placeholder="To'langan summa" class="px-4 py-2 border border-gray-300 rounded-lg">
+            <select name="status" class="px-4 py-2 border border-gray-300 rounded-lg">
+                <option value="new">Yangi</option>
+                <option value="in_progress">Jarayonda</option>
+                <option value="won">Yutilgan</option>
+                <option value="lost">Yutqazilgan</option>
+            </select>
+            <button type="submit" class="btn-primary md:col-span-4">Qo'shish</button>
+        </form>
+    </div>
+
+    <!-- DEALS TABLE -->
+    <div class="card-shadow">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="border-b border-gray-200">
+                    <th class="py-2 px-3">ID</th>
+                    <th class="py-2 px-3">Mahsulot</th>
+                    <th class="py-2 px-3">Mijoz</th>
+                    <th class="py-2 px-3">Manager</th>
+                    <th class="py-2 px-3">Summa</th>
+                    <th class="py-2 px-3">To'langan</th>
+                    <th class="py-2 px-3">Status</th>
+                </tr>
+            </thead>
+            <tbody id="dealsTableBody">
+                <tr><td colspan="7" class="py-4 text-center text-gray-500">Yuklanmoqda...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        async function loadDeals() {
+            try {
+                const response = await fetch('/api/deals');
+                const deals = await response.json();
+                const tbody = document.getElementById('dealsTableBody');
+
+                if (!Array.isArray(deals) || deals.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-500">Sdelkalar topilmadi</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = deals.map(deal => \`
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="py-2 px-3">#\${deal.id}</td>
+                        <td class="py-2 px-3">\${deal.productName}</td>
+                        <td class="py-2 px-3">\${deal.client ? deal.client.name : '-'}</td>
+                        <td class="py-2 px-3">\${deal.manager ? deal.manager.fullName : '-'}</td>
+                        <td class="py-2 px-3">\${formatCurrency(deal.amount)}</td>
+                        <td class="py-2 px-3">\${formatCurrency(deal.paidAmount)}</td>
+                        <td class="py-2 px-3"><span class="badge-\${statusClass(deal.status)}">\${statusLabel(deal.status)}</span></td>
+                    </tr>
+                \`).join('');
+            } catch (error) {
+                console.error('Deals loading error:', error);
+            }
+        }
+
+        function statusClass(status) {
+            if (status === 'won') return 'success';
+            if (status === 'lost') return 'danger';
+            return 'warning';
+        }
+
+        function statusLabel(status) {
+            const labels = { new: 'Yangi', in_progress: 'Jarayonda', won: 'Yutilgan', lost: 'Yutqazilgan' };
+            return labels[status] || status;
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0 }).format(value || 0);
+        }
+
+        document.getElementById('dealForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const data = {
+                productName: form.productName.value,
+                amount: form.amount.value,
+                paidAmount: form.paidAmount.value || 0,
+                status: form.status.value
+            };
+
+            try {
+                const response = await fetch('/api/deals', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    showToast(err.message || 'Xatolik yuz berdi', 'error');
+                    return;
+                }
+
+                form.reset();
+                showToast('✅ Sdelka qo\\'shildi!', 'success');
+                loadDeals();
+            } catch (error) {
+                console.error('Create deal error:', error);
+            }
+        });
+
+        loadDeals();
+    </script>
+    `
+}) %>
