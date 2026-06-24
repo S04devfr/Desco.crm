@@ -5,142 +5,96 @@ const cors = require('cors');
 const path = require('path');
 const session = require('express-session');
 
-// Load environment variables
 dotenv.config();
 
-// Initialize Express app
 const app = express();
 
-// ============================================
-// MIDDLEWARE
-// ============================================
-
-// Security middleware
-// CSP and HSTS are disabled because the views rely on inline <script> tags
-// and CDN-hosted assets (Tailwind, Font Awesome, Chart.js), and HSTS would
-// force the browser to upgrade localhost to HTTPS on future visits.
-app.use(helmet({
-  contentSecurityPolicy: false,
-  hsts: false
-}));
+app.use(helmet({ contentSecurityPolicy: false, hsts: false }));
 app.use(cors());
-
-// Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session middleware
 app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { 
+  cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 1000 * 60 * 60 * 24 // 24 hours
+    maxAge: 1000 * 60 * 60 * 24
   }
 }));
 
-// View engine setup (EJS)
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '../views'));
-
-// Static files
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Request logging middleware
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
 });
 
-// ============================================
-// ROUTES
-// ============================================
+// ── API ROUTES ──
+app.get('/api/health', (req, res) => res.json({ status: 'OK', message: 'DESCO CRM is running' }));
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'DESCO CRM is running' });
-});
+app.use('/api/auth',            require('./routes/auth'));
+app.use('/api/dashboard',       require('./routes/dashboard'));
+app.use('/api/deals',           require('./routes/deals'));
+app.use('/api/clients',         require('./routes/clients'));
+app.use('/api/expenses',        require('./routes/expenses'));
+app.use('/api/tasks',           require('./routes/tasks'));
+app.use('/api/notifications',   require('./routes/notifications'));
+app.use('/api/search',          require('./routes/search'));
+app.use('/api/pipeline-stages', require('./routes/pipeline'));
+app.use('/api/pipelines',       require('./routes/pipelines'));
+app.use('/api/settings',        require('./routes/settings'));
+app.use('/api/instagram',       require('./routes/instagram'));
+app.use('/api/webhooks',        require('./routes/webhooks'));
 
-// Import route modules
-const authRoutes = require('./routes/auth');
-const dashboardRoutes = require('./routes/dashboard');
-const dealRoutes = require('./routes/deals');
-const clientRoutes = require('./routes/clients');
-const expenseRoutes = require('./routes/expenses');
-const taskRoutes = require('./routes/tasks');
-const searchRoutes = require('./routes/search');
+// ── PAGE ROUTES ──
+function requireAuth(req, res, next) {
+  if (!req.session.userId) return res.redirect('/login');
+  next();
+}
 
-// Register routes
-app.use('/api/auth', authRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/deals', dealRoutes);
-app.use('/api/clients', clientRoutes);
-app.use('/api/expenses', expenseRoutes);
-app.use('/api/tasks', taskRoutes);
-app.use('/api/search', searchRoutes);
+const { getStages } = require('./routes/pipeline');
+const { getCompanySettings } = require('./routes/settings');
 
-// Serve views (for server-rendered pages)
-app.get('/', (req, res) => {
-  if (!req.session.userId) {
-    return res.redirect('/login');
+app.get('/', requireAuth, (req, res) => res.render('dashboard/index', { user: req.session.user, activePage: 'dashboard' }));
+app.get('/deals',    requireAuth, (req, res) => res.render('deals/index',    { user: req.session.user, activePage: 'deals' }));
+app.get('/clients',  requireAuth, (req, res) => res.render('clients/index',  { user: req.session.user, activePage: 'clients' }));
+app.get('/expenses', requireAuth, (req, res) => res.render('expenses/index', { user: req.session.user, activePage: 'expenses' }));
+app.get('/tasks',    requireAuth, (req, res) => res.render('tasks/index',    { user: req.session.user, activePage: 'tasks' }));
+app.get('/instagram', requireAuth, (req, res) => res.render('instagram/index', { user: req.session.user, activePage: 'instagram' }));
+app.get('/design-system', requireAuth, (req, res) => res.render('design-system/index', { user: req.session.user, activePage: 'design-system' }));
+
+app.get('/settings', requireAuth, async (req, res) => {
+  try {
+    const prisma = require('./config/database');
+    const [pipelines, company] = await Promise.all([
+      prisma.pipeline.findMany({
+        include: { stages: { orderBy: [{ order: 'asc' }, { id: 'asc' }] } },
+        orderBy: [{ order: 'asc' }, { id: 'asc' }]
+      }),
+      getCompanySettings()
+    ]);
+    let users = [];
+    if (req.session.user?.role === 'admin') {
+      users = await prisma.user.findMany({ select: { id: true, email: true, fullName: true, role: true, createdAt: true } });
+    }
+    res.render('settings/index', { user: req.session.user, activePage: 'settings', pipelines, company, users });
+  } catch (err) {
+    console.error(err);
+    res.render('settings/index', { user: req.session.user, activePage: 'settings', pipelines: [], company: {}, users: [] });
   }
-  res.render('dashboard/index', { user: req.session.user });
 });
 
-app.get('/deals', (req, res) => {
-  if (!req.session.userId) {
-    return res.redirect('/login');
-  }
-  res.render('deals/index', { user: req.session.user });
-});
+app.get('/login',    (req, res) => { if (req.session.userId) return res.redirect('/'); res.render('auth/login'); });
+app.get('/register', (req, res) => { if (req.session.userId) return res.redirect('/'); res.render('auth/register'); });
 
-app.get('/clients', (req, res) => {
-  if (!req.session.userId) {
-    return res.redirect('/login');
-  }
-  res.render('clients/index', { user: req.session.user });
-});
+// ── ERROR HANDLING ──
+app.use((req, res) => res.status(404).json({ message: 'Route not found' }));
 
-app.get('/expenses', (req, res) => {
-  if (!req.session.userId) {
-    return res.redirect('/login');
-  }
-  res.render('expenses/index', { user: req.session.user });
-});
-
-app.get('/tasks', (req, res) => {
-  if (!req.session.userId) {
-    return res.redirect('/login');
-  }
-  res.render('tasks/index', { user: req.session.user });
-});
-
-app.get('/login', (req, res) => {
-  if (req.session.userId) {
-    return res.redirect('/');
-  }
-  res.render('auth/login');
-});
-
-app.get('/register', (req, res) => {
-  if (req.session.userId) {
-    return res.redirect('/');
-  }
-  res.render('auth/register');
-});
-
-// ============================================
-// ERROR HANDLING
-// ============================================
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ message: 'Route not found' });
-});
-
-// Global error handler
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err);
   res.status(err.status || 500).json({
@@ -149,20 +103,23 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ============================================
-// SERVER START
-// ============================================
-
 const PORT = process.env.PORT || 3000;
+const runMigrations = require('./db-migrate');
+const prisma = require('./config/database');
 
-app.listen(PORT, () => {
-  console.log(`
-  ╔════════════════════════════════════════╗
-  ║    DESCO CRM - Server Started ✅       ║
-  ║    Port: ${PORT}                           ║
-  ║    Environment: ${process.env.NODE_ENV}              ║
-  ╚════════════════════════════════════════╝
-  `);
+runMigrations(prisma).then(() => {
+  app.listen(PORT, () => {
+    console.log(`
+  ╔══════════════════════════════════════╗
+  ║   DESCO CRM — Running on :${PORT}     ║
+  ╚══════════════════════════════════════╝`);
+  });
+}).catch(err => {
+  console.error('Migration xatosi:', err);
+  // Migratsiya muvaffaqiyatsiz bo'lsa ham server'ni ishga tushiramiz
+  app.listen(PORT, () => {
+    console.log(`DESCO CRM — Running on :${PORT} (migration errors ignored)`);
+  });
 });
 
 module.exports = app;

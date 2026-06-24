@@ -110,3 +110,29 @@ router.get('/me', protect, async (req, res, next) => {
 })
 
 module.exports = router
+
+// GET /auth/logout (page redirect)
+router.get('/logout', (req, res) => {
+  if (req.session) req.session.destroy(() => {})
+  res.clearCookie('connect.sid')
+  res.redirect('/login')
+})
+
+// Change password
+router.post('/change-password', protect, async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+    if (!currentPassword || !newPassword) return res.status(400).json({ message: 'Barcha maydonlar majburiy' })
+    if (newPassword.length < 6) return res.status(400).json({ message: 'Parol kamida 6 ta belgi' })
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId } })
+    if (!user) return res.status(404).json({ message: 'Foydalanuvchi topilmadi' })
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password)
+    if (!isMatch) return res.status(401).json({ message: "Joriy parol noto'g'ri" })
+
+    const hashed = await bcrypt.hash(newPassword, 10)
+    await prisma.user.update({ where: { id: req.userId }, data: { password: hashed } })
+    res.json({ message: "Parol muvaffaqiyatli o'zgartirildi" })
+  } catch (error) { next(error) }
+})

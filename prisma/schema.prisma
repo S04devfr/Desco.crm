@@ -16,10 +16,11 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  deals    Deal[]
-  tasks    Task[]
-  expenses Expense[]
-  clients  Client[]
+  deals       Deal[]
+  tasks       Task[]
+  expenses    Expense[]
+  clients     Client[]
+  activities  ActivityLog[]
 }
 
 model Client {
@@ -28,6 +29,7 @@ model Client {
   phone     String?
   email     String?
   company   String?
+  companyAddress String?
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -36,17 +38,53 @@ model Client {
   owner   User?  @relation(fields: [ownerId], references: [id])
 
   deals Deal[]
+  tasks Task[]
+
+  instagramId       String? @unique
+  instagramUsername String?
+  messages          InstagramMessage[]
+}
+
+// ── VORONKA (PIPELINE) ──
+model Pipeline {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  isDefault   Boolean  @default(false)
+  color       String   @default("#007AFF")
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stages PipelineStage[]
+  deals  Deal[]
+}
+
+model PipelineStage {
+  id        Int      @id @default(autoincrement())
+  name      String
+  color     String   @default("#5D4037")
+  order     Int      @default(0)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pipelineId Int?
+  pipeline   Pipeline? @relation(fields: [pipelineId], references: [id])
+
+  deals Deal[]
 }
 
 model Deal {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   productName String
-  amount      Float    @default(0)
-  paidAmount  Float    @default(0)
-  status      String   @default("new")
+  amount      Float     @default(0)
+  paidAmount  Float     @default(0)
+  status      String    @default("new")
   notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  deadline    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   clientId Int?
   client   Client? @relation(fields: [clientId], references: [id])
@@ -54,7 +92,30 @@ model Deal {
   managerId Int?
   manager   User? @relation(fields: [managerId], references: [id])
 
-  tasks Task[]
+  stageId Int?
+  stage   PipelineStage? @relation(fields: [stageId], references: [id])
+
+  pipelineId Int?
+  pipeline   Pipeline? @relation(fields: [pipelineId], references: [id])
+
+  tasks      Task[]
+  activities ActivityLog[]
+
+  @@index([stageId])
+  @@index([managerId])
+}
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+
+  dealId Int?
+  deal   Deal? @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
 }
 
 model Expense {
@@ -64,6 +125,7 @@ model Expense {
   category    String   @default("other")
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   createdById Int?
   createdBy   User? @relation(fields: [createdById], references: [id])
@@ -76,6 +138,7 @@ model Task {
   dueDate     DateTime?
   dueTime     String?
   completed   Boolean   @default(false)
+  priority    String    @default("medium")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -84,4 +147,39 @@ model Task {
 
   dealId Int?
   deal   Deal? @relation(fields: [dealId], references: [id])
+
+  clientId Int?
+  client   Client? @relation(fields: [clientId], references: [id])
+}
+
+model CompanySettings {
+  id          Int      @id @default(autoincrement())
+  companyName String   @default("DESCO CRM")
+  currency    String   @default("UZS")
+  logoUrl     String?
+  updatedAt   DateTime @updatedAt
+}
+
+model InstagramAccount {
+  id          Int      @id @default(autoincrement())
+  accountId   String   @unique
+  accessToken String?
+  username    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model InstagramMessage {
+  id        Int      @id @default(autoincrement())
+  messageId String   @unique
+  text      String?
+  senderId  String
+  recipientId String
+  timestamp DateTime
+  isOutgoing Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  clientId  Int?
+  client    Client?  @relation(fields: [clientId], references: [id])
 }

@@ -1,88 +1,175 @@
-// Main JS for DESCO CRM
+/* =====================================================
+   DESCO CRM — Global JS
+   ===================================================== */
 
-// Global Toast Function
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toastContainer');
-    const toast = document.createElement('div');
-    
-    const bgColor = {
-        success: 'bg-green-500',
-        error: 'bg-red-500',
-        warning: 'bg-yellow-500',
-        info: 'bg-blue-500'
-    }[type] || 'bg-blue-500';
-    
-    toast.innerHTML = `
-        <div class="${bgColor} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-pulse">
-            <span>${message}</span>
-            <button onclick="this.parentElement.parentElement.remove()" class="text-xl">&times;</button>
-        </div>
-    `;
-    
-    container.appendChild(toast);
-    
-    // Auto remove after 5 seconds
-    setTimeout(() => toast.remove(), 5000);
+// ── THEME ──
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('crm-theme', theme);
+  const icon = document.getElementById('themeIcon');
+  if (icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
 }
 
-// Global Search
-document.getElementById('globalSearch')?.addEventListener('input', async (e) => {
-    const query = e.target.value;
-    if (query.length < 2) {
-        document.getElementById('searchResults').classList.add('hidden');
-        return;
-    }
-    
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+(function () {
+  const saved = localStorage.getItem('crm-theme') || 'light';
+  applyTheme(saved);
+})();
+
+// ── TOAST ──
+function showToast(message, type = 'info', duration = 3500) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+
+  const icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.innerHTML = `
+    <i class="fas ${icons[type] || icons.info} toast-icon"></i>
+    <span class="toast-msg">${escHtml(message)}</span>
+    <button class="toast-close" onclick="this.closest('.toast').remove()">&times;</button>
+  `;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('hiding');
+    setTimeout(() => toast.remove(), 220);
+  }, duration);
+}
+
+// ── LOGOUT ──
+async function logout() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } catch (e) {}
+  window.location.href = '/login';
+}
+
+// ── ESCAPE HTML ──
+function escHtml(str) {
+  return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ── FORMAT MONEY ──
+function fmtMoney(val) {
+  if (val === null || val === undefined) return '—';
+  const n = Number(val) || 0;
+  return n.toLocaleString('uz-UZ') + ' UZS';
+}
+
+function fmtShort(val) {
+  const n = Number(val) || 0;
+  if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + 'mlrd';
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'mln';
+  if (n >= 1_000) return (n / 1_000).toFixed(0) + 'K';
+  return String(n);
+}
+
+// ── FORMAT DATES ──
+function fmtDate(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    return new Date(dateStr).toLocaleDateString('uz-UZ', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch { return dateStr; }
+}
+
+function fmtDateShort(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    return new Date(dateStr).toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  } catch { return dateStr; }
+}
+
+function fmtDateTime(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    return new Date(dateStr).toLocaleString('uz-UZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  } catch { return dateStr; }
+}
+
+// ── DEBOUNCE ──
+function debounce(fn, delay) {
+  let t;
+  return function (...args) {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
+// ── FETCH WITH TIMEOUT (Zero Freeze Policy) ──
+// Page-level data loads should use this instead of raw fetch() so a slow
+// or hanging backend can never leave a page stuck on its loading
+// skeleton/spinner forever. Aborts after `timeoutMs` (default 5s) and
+// throws a friendly, pre-translated error so callers can show a toast
+// instead of hanging indefinitely.
+function fetchWithTimeout(url, options, timeoutMs) {
+  options = options || {};
+  timeoutMs = timeoutMs || 5000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, Object.assign({}, options, { signal: controller.signal }))
+    .catch(e => {
+      if (e && e.name === 'AbortError') {
+        const timeoutErr = new Error("Ma'lumotlarni yuklashda xatolik");
+        timeoutErr.isTimeout = true;
+        throw timeoutErr;
+      }
+      throw e;
+    })
+    .finally(() => clearTimeout(timer));
+}
+window.fetchWithTimeout = fetchWithTimeout;
+
+// ── TOGGLE TASK ──
+async function toggleTask(id, el) {
+  const completed = !el.classList.contains('done');
+  try {
+    await fetch('/api/tasks/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ completed })
+    });
+    el.classList.toggle('done', completed);
+    el.innerHTML = completed ? '<i class="fas fa-check" style="font-size:9px"></i>' : '';
+    // Find nearby title and toggle done class
+    const titleEl = el.closest('.task-item')?.querySelector('.task-title');
+    if (titleEl) titleEl.classList.toggle('done', completed);
+  } catch (e) {
+    showToast('Xato', 'error');
+  }
+}
+
+// ── GLOBAL SEARCH (topbar) ──
+const globalSearchEl = document.getElementById('globalSearch');
+if (globalSearchEl) {
+  globalSearchEl.addEventListener('input', debounce(async function () {
+    const q = this.value.trim();
+    if (q.length < 2) return;
     try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-        const results = await response.json();
-        
-        let html = '';
-        
-        // Clients
-        if (results.clients.length > 0) {
-            html += '<div class="p-4 border-b"><p class="font-semibold text-sm text-gray-700 mb-2">👥 Kontaktlar</p>';
-            results.clients.forEach(client => {
-                html += `<p class="text-sm py-1 hover:bg-gray-100 px-2 cursor-pointer">${client.name} (${client.phone})</p>`;
-            });
-            html += '</div>';
-        }
-        
-        // Deals
-        if (results.deals.length > 0) {
-            html += '<div class="p-4 border-b"><p class="font-semibold text-sm text-gray-700 mb-2">🚀 Sdelkalar</p>';
-            results.deals.forEach(deal => {
-                html += `<p class="text-sm py-1 hover:bg-gray-100 px-2 cursor-pointer">#${deal.id} - ${deal.productName}</p>`;
-            });
-            html += '</div>';
-        }
-        
-        if (html === '') {
-            html = '<div class="p-4 text-center text-gray-500 text-sm">Natija topilmadi</div>';
-        }
-        
-        document.getElementById('searchResults').innerHTML = html;
-        document.getElementById('searchResults').classList.remove('hidden');
-    } catch (error) {
-        console.error('Search error:', error);
-    }
+      const r = await fetch('/api/search?q=' + encodeURIComponent(q));
+      if (r.ok) {
+        const data = await r.json();
+        // Simple: navigate to relevant page
+        if (data.deals && data.deals.length) window._searchHint = 'deals';
+      }
+    } catch (e) {}
+  }, 400));
+}
+
+// ── MODAL BACKDROP CLOSE ──
+document.addEventListener('click', function (e) {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.add('hidden');
+  }
 });
 
-// Logout function
-function logout() {
-    fetch('/api/auth/logout', { method: 'POST' })
-        .then(() => window.location.href = '/login')
-        .catch(error => console.error('Logout error:', error));
-}
-
-// Check authentication on page load
-window.addEventListener('load', async () => {
-    try {
-        const response = await fetch('/api/auth/me');
-        if (response.status === 401) {
-            window.location.href = '/login';
-        }
-    } catch (error) {
-        console.error('Auth check error:', error);
-    }
+// ── ESC TO CLOSE MODAL ──
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay:not(.hidden)').forEach(m => m.classList.add('hidden'));
+  }
 });

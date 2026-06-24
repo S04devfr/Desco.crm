@@ -1,73 +1,114 @@
 <!DOCTYPE html>
 <html lang="uz">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kirish - DESCO CRM</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/css/custom.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kirish — DESCO CRM</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#040010;-webkit-font-smoothing:antialiased}
+    .bg{position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 100% 80% at 20% 10%,#0d2850 0%,transparent 55%),radial-gradient(ellipse 80% 70% at 80% 90%,#200840 0%,transparent 55%),radial-gradient(ellipse 60% 50% at 50% 50%,#061630 0%,transparent 70%),#040010}
+    .orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;animation:float 9s ease-in-out infinite}
+    .orb:nth-child(1){width:600px;height:600px;background:radial-gradient(circle,#0055cc 0%,transparent 70%);top:-150px;left:-150px}
+    .orb:nth-child(2){width:500px;height:500px;background:radial-gradient(circle,#4a00a0 0%,transparent 70%);bottom:-100px;right:-100px;animation-delay:-4s}
+    .orb:nth-child(3){width:350px;height:350px;background:radial-gradient(circle,rgba(0,122,255,.3) 0%,transparent 70%);top:45%;left:55%;animation-delay:-7s}
+    @keyframes float{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(25px,-25px) scale(1.06)}66%{transform:translate(-18px,12px) scale(.94)}}
+    .grid{position:fixed;inset:0;z-index:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:52px 52px}
+    .card{position:relative;z-index:1;width:100%;max-width:420px;margin:16px;background:rgba(255,255,255,.07);backdrop-filter:blur(48px) saturate(200%);-webkit-backdrop-filter:blur(48px) saturate(200%);border-radius:28px;border:1px solid rgba(255,255,255,.13);box-shadow:0 40px 100px rgba(0,0,0,.6),0 8px 32px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.18);padding:44px 40px;animation:cardIn .5s cubic-bezier(.34,1.2,.64,1)}
+    @keyframes cardIn{from{opacity:0;transform:translateY(28px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+    .logo{text-align:center;margin-bottom:34px}
+    .logo img{max-width:190px;max-height:72px;object-fit:contain;margin-bottom:10px}
+    .logo-icon{width:64px;height:64px;background:linear-gradient(135deg,rgba(0,122,255,.6),rgba(88,86,214,.8));border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:#fff;font-size:26px;border:1px solid rgba(255,255,255,.2);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+    .logo h1{font-size:26px;font-weight:800;color:#fff;letter-spacing:-.5px;margin-bottom:5px}
+    .logo p{color:rgba(255,255,255,.45);font-size:13px}
+    .error-box{background:rgba(255,59,48,.18);color:#ffb3ae;padding:11px 14px;border-radius:12px;font-size:13px;margin-bottom:18px;display:none;border:1px solid rgba(255,59,48,.3)}
+    .lbl{display:block;font-size:11px;font-weight:600;color:rgba(255,255,255,.5);margin-bottom:7px;text-transform:uppercase;letter-spacing:.6px}
+    .fg{margin-bottom:18px}
+    .inp{width:100%;padding:12px 14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:12px;font-size:14px;color:#fff;outline:none;transition:all .2s;font-family:inherit}
+    .inp::placeholder{color:rgba(255,255,255,.28)}
+    .inp:focus{background:rgba(255,255,255,.13);border-color:rgba(0,122,255,.7);box-shadow:0 0 0 3px rgba(0,122,255,.2)}
+    .inp:hover:not(:focus){background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2)}
+    .btn{width:100%;padding:13px 20px;background:linear-gradient(135deg,#0066dd,#007AFF);border:1px solid rgba(255,255,255,.2);border-radius:14px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;margin-top:6px;font-family:inherit;box-shadow:0 4px 20px rgba(0,122,255,.45),inset 0 1px 0 rgba(255,255,255,.2)}
+    .btn:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(0,122,255,.55)}
+    .btn:active{transform:scale(.98)}
+    .btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+    .footer{text-align:center;margin-top:22px;font-size:13px;color:rgba(255,255,255,.38)}
+    .footer a{color:rgba(100,180,255,.9);text-decoration:none;font-weight:600}
+    .footer a:hover{color:#fff}
+    .spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
 </head>
-<body class="bg-gradient-to-br from-blue-700 to-blue-900 min-h-screen flex items-center justify-center">
-    <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-gray-800 flex items-center justify-center gap-2">
-                <i class="fas fa-chart-line text-blue-600"></i> DESCO CRM
-            </h1>
-            <p class="text-gray-500 mt-2">Hisobingizga kiring</p>
-        </div>
+<body>
+<div class="bg">
+  <div class="orb"></div><div class="orb"></div><div class="orb"></div>
+</div>
+<div class="grid"></div>
 
-        <div id="errorBox" class="hidden mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm"></div>
-
-        <form id="loginForm" class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input type="email" id="email" name="email" required
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Parol</label>
-                <input type="password" id="password" name="password" required
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-            <button type="submit" class="w-full btn-primary">Kirish</button>
-        </form>
-
-        <p class="text-center text-sm text-gray-500 mt-6">
-            Akkaunt yo'qmi? <a href="/register" class="text-blue-600 font-medium hover:underline">Ro'yxatdan o'tish</a>
-        </p>
+<div class="card">
+  <div class="logo">
+    <img src="/images/logo.jpg" alt="DESCO PREMIUM"
+      onerror="this.style.display='none';document.getElementById('logo-fb').style.display='block'">
+    <div id="logo-fb" style="display:none">
+      <div class="logo-icon"><i class="fas fa-chart-bar"></i></div>
+      <h1>DESCO CRM</h1>
     </div>
+    <p>Hisobingizga kiring</p>
+  </div>
 
-    <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const errorBox = document.getElementById('errorBox');
-            errorBox.classList.add('hidden');
+  <div class="error-box" id="errorBox"></div>
 
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
+  <form id="loginForm">
+    <div class="fg">
+      <label class="lbl">Email manzil</label>
+      <input type="email" id="email" class="inp" placeholder="email@example.com" required autofocus autocomplete="username">
+    </div>
+    <div class="fg">
+      <label class="lbl">Parol</label>
+      <input type="password" id="password" class="inp" placeholder="••••••••" required autocomplete="current-password">
+    </div>
+    <button type="submit" class="btn" id="loginBtn">
+      <i class="fas fa-right-to-bracket"></i> Kirish
+    </button>
+  </form>
 
-            try {
-                const response = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
+  <div class="footer">
+    Akkaunt yo'qmi? <a href="/register">Ro'yxatdan o'tish</a>
+  </div>
+</div>
 
-                const data = await response.json();
-
-                if (!response.ok) {
-                    errorBox.textContent = data.message || 'Xatolik yuz berdi';
-                    errorBox.classList.remove('hidden');
-                    return;
-                }
-
-                window.location.href = '/';
-            } catch (error) {
-                errorBox.textContent = 'Server bilan bog\'lanishda xatolik';
-                errorBox.classList.remove('hidden');
-            }
-        });
-    </script>
+<script>
+document.getElementById('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const err = document.getElementById('errorBox');
+  const btn = document.getElementById('loginBtn');
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spin"></div> Kirilmoqda...';
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: document.getElementById('email').value, password: document.getElementById('password').value })
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      err.textContent = data.message || 'Xatolik yuz berdi';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Kirish';
+      return;
+    }
+    window.location.href = '/';
+  } catch {
+    err.textContent = "Server bilan bog'lanishda xatolik";
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Kirish';
+  }
+});
+</script>
 </body>
 </html>

@@ -1,235 +1,219 @@
-<%- include('../layouts/base', { 
-    title: 'Dashboard - DESCO CRM',
-    body: ` 
-    <!-- PAGE HEADER -->
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800">📊 Dashboard</h1>
-        <p class="text-gray-600 mt-1">Xush kelibsiz, ${user.fullName}!</p>
+<%- include('../layouts/base', {
+  title: 'Dashboard — DESCO CRM',
+  activePage: 'dashboard',
+  user: user,
+  body: `
+<div class="page-header">
+  <div>
+    <h1>Dashboard</h1>
+    <p>Umumiy ko'rsatkichlar va statistika</p>
+  </div>
+  <div class="page-header-actions">
+    <button class="btn btn-secondary btn-sm" onclick="loadDashboard()">
+      <i class="fas fa-sync-alt"></i> Yangilash
+    </button>
+  </div>
+</div>
+
+<!-- KPI STATS -->
+<div class="stats-grid" id="kpiCards">
+  <div class="stat-card"><div class="stat-icon blue"><i class="fas fa-handshake"></i></div><div class="stat-info"><div class="stat-label">Jami sdelkalar</div><div class="stat-value skeleton" style="height:28px;width:60px"> </div></div></div>
+  <div class="stat-card"><div class="stat-icon green"><i class="fas fa-dollar-sign"></i></div><div class="stat-info"><div class="stat-label">Tushum</div><div class="stat-value skeleton" style="height:28px;width:80px"> </div></div></div>
+  <div class="stat-card"><div class="stat-icon orange"><i class="fas fa-clock"></i></div><div class="stat-info"><div class="stat-label">Qarz</div><div class="stat-value skeleton" style="height:28px;width:80px"> </div></div></div>
+  <div class="stat-card"><div class="stat-icon red"><i class="fas fa-minus-circle"></i></div><div class="stat-info"><div class="stat-label">Xarajatlar</div><div class="stat-value skeleton" style="height:28px;width:80px"> </div></div></div>
+  <div class="stat-card"><div class="stat-icon purple"><i class="fas fa-chart-line"></i></div><div class="stat-info"><div class="stat-label">Foyda</div><div class="stat-value skeleton" style="height:28px;width:80px"> </div></div></div>
+</div>
+
+<!-- CHARTS + TASKS -->
+<div class="dashboard-grid">
+  <div class="card">
+    <div class="card-header">
+      <h3><i class="fas fa-chart-bar" style="color:var(--accent);margin-right:6px"></i>Menejerlar bo'yicha savdo</h3>
     </div>
-    
-    <!-- KPI CARDS -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        <!-- Total Orders -->
-        <div class="card-shadow">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="text-gray-600 text-sm font-medium">📦 Jami Buyurtmalar</p>
-                    <p class="text-2xl font-bold text-gray-800 mt-2" id="kpiOrders">0</p>
-                </div>
-                <div class="bg-blue-100 p-3 rounded-lg">
-                    <i class="fas fa-box text-blue-600 text-xl"></i>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Total Revenue -->
-        <div class="card-shadow">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="text-gray-600 text-sm font-medium">💰 Jami Tushum</p>
-                    <p class="text-2xl font-bold text-green-600 mt-2" id="kpiRevenue">0</p>
-                </div>
-                <div class="bg-green-100 p-3 rounded-lg">
-                    <i class="fas fa-dollar-sign text-green-600 text-xl"></i>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Outstanding Debt -->
-        <div class="card-shadow">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="text-gray-600 text-sm font-medium">⚠️ Qarzdorlik</p>
-                    <p class="text-2xl font-bold text-red-600 mt-2" id="kpiDebt">0</p>
-                </div>
-                <div class="bg-red-100 p-3 rounded-lg">
-                    <i class="fas fa-exclamation-circle text-red-600 text-xl"></i>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Total Expenses -->
-        <div class="card-shadow">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="text-gray-600 text-sm font-medium">🚗 Xarajatlar</p>
-                    <p class="text-2xl font-bold text-orange-600 mt-2" id="kpiExpenses">0</p>
-                </div>
-                <div class="bg-orange-100 p-3 rounded-lg">
-                    <i class="fas fa-car text-orange-600 text-xl"></i>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Net Profit -->
-        <div class="card-shadow">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="text-gray-600 text-sm font-medium">📈 Sof Daromad</p>
-                    <p class="text-2xl font-bold text-purple-600 mt-2" id="kpiProfit">0</p>
-                </div>
-                <div class="bg-purple-100 p-3 rounded-lg">
-                    <i class="fas fa-chart-line text-purple-600 text-xl"></i>
-                </div>
-            </div>
-        </div>
+    <div class="card-body">
+      <div class="chart-wrap">
+        <canvas id="salesChart"></canvas>
+      </div>
     </div>
-    
-    <!-- CHARTS & ANALYTICS -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <!-- Sales by Manager -->
-        <div class="card-shadow">
-            <h3 class="text-lg font-bold text-gray-800 mb-4">👥 Manager bo'yicha Sotiladigan Mahsulot</h3>
-            <canvas id="salesByManagerChart"></canvas>
-        </div>
-        
-        <!-- Product Popularity -->
-        <div class="card-shadow">
-            <h3 class="text-lg font-bold text-gray-800 mb-4">⭐ Mahsulot Mashhurlig'i</h3>
-            <canvas id="productPopularityChart"></canvas>
-        </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3><i class="fas fa-tasks" style="color:var(--accent);margin-right:6px"></i>Bugungi vazifalar</h3>
+      <a href="/tasks" class="btn btn-ghost btn-sm" style="font-size:12px">Barchasi</a>
     </div>
-    
-    <!-- TODAY'S TASKS -->
-    <div class="card-shadow">
-        <h3 class="text-lg font-bold text-gray-800 mb-4">📋 Bugungi Vazifalar</h3>
-        <div id="todayTasksWidget" class="space-y-3 max-h-96 overflow-y-auto">
-            <div class="text-center text-gray-500 py-8">Yuklanmoqda...</div>
-        </div>
+    <div id="todayTasks" class="task-list">
+      <div style="padding:20px;text-align:center"><div class="spinner"></div></div>
     </div>
-    
-    <script>
-        // Load KPIs
-        async function loadKPIs() {
-            try {
-                const response = await fetch('/api/dashboard/kpis');
-                const data = await response.json();
-                
-                document.getElementById('kpiOrders').textContent = data.totalOrders;
-                document.getElementById('kpiRevenue').textContent = formatCurrency(data.totalRevenue);
-                document.getElementById('kpiDebt').textContent = formatCurrency(data.totalDebt);
-                document.getElementById('kpiExpenses').textContent = formatCurrency(data.totalExpenses);
-                document.getElementById('kpiProfit').textContent = formatCurrency(data.netProfit);
-            } catch (error) {
-                console.error('KPI loading error:', error);
-            }
+  </div>
+</div>
+
+<!-- PRODUCT CHART -->
+<div class="card mt-4">
+  <div class="card-header">
+    <h3><i class="fas fa-box" style="color:var(--accent);margin-right:6px"></i>Mahsulotlar bo'yicha</h3>
+  </div>
+  <div class="card-body">
+    <div class="chart-wrap" style="height:200px">
+      <canvas id="productChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+let salesChart, productChart;
+
+// Same-origin JSON fetch that actually checks the HTTP status before
+// trusting the body. Without this, a 401/500 response still resolves
+// r.json() successfully (to an error-shaped object like {message:"..."}),
+// so kpis.totalRevenue etc. end up undefined -> fmtMoney(undefined) -> '—'.
+// That silent-dash behavior was being mistaken for a "loading" bug.
+async function dashFetch(url) {
+  const fetchFn = (typeof fetchWithTimeout === 'function') ? fetchWithTimeout : fetch;
+  const r = await fetchFn(url);
+  let data;
+  try { data = await r.json(); } catch { data = {}; }
+  if (!r.ok) throw new Error(data.message || (url + ' -> ' + r.status));
+  return data;
+}
+
+async function loadDashboard() {
+  try {
+    const [kpis, salesData, productData, tasks] = await Promise.all([
+      dashFetch('/api/dashboard/kpis'),
+      dashFetch('/api/dashboard/sales-by-manager'),
+      dashFetch('/api/dashboard/product-popularity'),
+      dashFetch('/api/dashboard/today-tasks')
+    ]);
+
+    // KPI Cards
+    document.getElementById('kpiCards').innerHTML = \`
+      <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-handshake"></i></div>
+        <div class="stat-info">
+          <div class="stat-label">Jami sdelkalar</div>
+          <div class="stat-value">\${kpis.totalOrders}</div>
+          <div class="stat-sub">Yutilgan: \${kpis.won} · Yo'qotilgan: \${kpis.lost}</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-coins"></i></div>
+        <div class="stat-info">
+          <div class="stat-label">To'langan</div>
+          <div class="stat-value">\${fmtMoney(kpis.totalRevenue)}</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon orange"><i class="fas fa-clock"></i></div>
+        <div class="stat-info">
+          <div class="stat-label">Qarz</div>
+          <div class="stat-value">\${fmtMoney(kpis.totalDebt)}</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red"><i class="fas fa-minus-circle"></i></div>
+        <div class="stat-info">
+          <div class="stat-label">Xarajatlar</div>
+          <div class="stat-value">\${fmtMoney(kpis.totalExpenses)}</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple"><i class="fas fa-chart-line"></i></div>
+        <div class="stat-info">
+          <div class="stat-label">Sof foyda</div>
+          <div class="stat-value \${kpis.netProfit >= 0 ? 'text-success' : 'text-danger'}">\${fmtMoney(kpis.netProfit)}</div>
+        </div>
+      </div>
+    \`;
+
+    // Sales Chart
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+    const textColor = isDark ? '#98989d' : '#6e6e73';
+
+    if (salesChart) salesChart.destroy();
+    salesChart = new Chart(document.getElementById('salesChart'), {
+      type: 'bar',
+      data: {
+        labels: salesData.map(d => d.manager),
+        datasets: [{
+          label: "Savdo (so'm)",
+          data: salesData.map(d => d.totalSales),
+          backgroundColor: 'rgba(0,122,255,0.7)',
+          borderRadius: 8, borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { grid: { color: gridColor }, ticks: { color: textColor, callback: v => fmtShort(v) } },
+          x: { grid: { display: false }, ticks: { color: textColor } }
         }
-        
-        // Load Today's Tasks
-        async function loadTodayTasks() {
-            try {
-                const response = await fetch('/api/dashboard/today-tasks');
-                const tasks = await response.json();
-                
-                const tasksWidget = document.getElementById('todayTasksWidget');
-                
-                if (tasks.length === 0) {
-                    tasksWidget.innerHTML = '<div class="text-center text-gray-500 py-8">Bugun vazifa yo\'q</div>';
-                    return;
-                }
-                
-                tasksWidget.innerHTML = tasks.map(task => \`
-                    <div class="border-l-4 border-blue-500 pl-4 py-2">
-                        <p class="font-semibold text-gray-800 text-sm">\${task.title}</p>
-                        <p class="text-gray-600 text-xs mt-1">🕐 \${task.dueTime || 'Vaqt ko\\'rsatilmagan'}</p>
-                        <button onclick="completeTask(\${task.id})" class="mt-2 px-3 py-1 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200 transition">
-                            ✓ Tugatish
-                        </button>
-                    </div>
-                \`).join('');
-                
-                // Update badge
-                document.getElementById('taskBadge').textContent = tasks.length;
-                document.getElementById('taskBadge').classList.remove('hidden');
-            } catch (error) {
-                console.error('Tasks loading error:', error);
-            }
-        }
-        
-        // Load Charts
-        async function loadCharts() {
-            try {
-                // Sales by Manager
-                const salesResponse = await fetch('/api/dashboard/sales-by-manager');
-                const salesData = await salesResponse.json();
-                
-                const ctx1 = document.getElementById('salesByManagerChart').getContext('2d');
-                new Chart(ctx1, {
-                    type: 'bar',
-                    data: {
-                        labels: salesData.map(d => d.manager),
-                        datasets: [{
-                            label: 'Sotuv Miqdori',
-                            data: salesData.map(d => d.totalSales),
-                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
-                            borderColor: 'rgb(59, 130, 246)',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
-                    }
-                });
-                
-                // Product Popularity
-                const productsResponse = await fetch('/api/dashboard/product-popularity');
-                const productsData = await productsResponse.json();
-                
-                const ctx2 = document.getElementById('productPopularityChart').getContext('2d');
-                new Chart(ctx2, {
-                    type: 'doughnut',
-                    data: {
-                        labels: productsData.map(d => d.product),
-                        datasets: [{
-                            data: productsData.map(d => d.count),
-                            backgroundColor: [
-                                'rgba(59, 130, 246, 0.8)',
-                                'rgba(34, 197, 94, 0.8)',
-                                'rgba(249, 115, 22, 0.8)',
-                                'rgba(239, 68, 68, 0.8)',
-                                'rgba(168, 85, 247, 0.8)'
-                            ]
-                        }]
-                    },
-                    options: { responsive: true }
-                });
-            } catch (error) {
-                console.error('Chart loading error:', error);
-            }
-        }
-        
-        // Format currency
-        function formatCurrency(value) {
-            return new Intl.NumberFormat('uz-UZ', {
-                style: 'currency',
-                currency: 'UZS',
-                minimumFractionDigits: 0
-            }).format(value);
-        }
-        
-        // Complete task
-        async function completeTask(taskId) {
-            try {
-                await fetch('/api/tasks/' + taskId + '/complete', { method: 'PATCH' });
-                loadTodayTasks();
-                showToast('✅ Vazifa tugatildi!', 'success');
-            } catch (error) {
-                console.error('Error completing task:', error);
-            }
-        }
-        
-        // Initialize
-        loadKPIs();
-        loadTodayTasks();
-        loadCharts();
-        
-        // Refresh every 5 minutes
-        setInterval(() => {
-            loadKPIs();
-            loadTodayTasks();
-        }, 5 * 60 * 1000);
-    </script>
-    ` 
+      }
+    });
+
+    // Product Chart
+    if (productChart) productChart.destroy();
+    const top = productData.slice(0, 8);
+    const colors = ['#007AFF','#34C759','#FF9500','#FF3B30','#5856D6','#00C7BE','#FF2D55','#AC8E68'];
+    productChart = new Chart(document.getElementById('productChart'), {
+      type: 'doughnut',
+      data: {
+        labels: top.map(d => d.product),
+        datasets: [{ data: top.map(d => d.count), backgroundColor: colors, borderWidth: 0 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'right', labels: { color: textColor, boxWidth: 12, padding: 14, font: { size: 12 } } } }
+      }
+    });
+
+    // Today's tasks
+    const tasksEl = document.getElementById('todayTasks');
+    if (!tasks.length) {
+      tasksEl.innerHTML = '<div class="empty-state" style="padding:24px"><div class="empty-state-icon"><i class="fas fa-check-circle"></i></div><h3>Bugungi vazifalar yo\\'q</h3></div>';
+    } else {
+      tasksEl.innerHTML = tasks.map(t => \`
+        <div class="task-item">
+          <div class="task-check \${t.completed ? 'done' : ''}" onclick="toggleTask(\${t.id}, this)">
+            \${t.completed ? '<i class="fas fa-check" style="font-size:9px"></i>' : ''}
+          </div>
+          <div class="task-info">
+            <div class="task-title \${t.completed ? 'done' : ''}">\${escHtml(t.title)}</div>
+            <div class="task-meta">
+              <span class="priority-dot \${t.priority}"></span>
+              \${t.dueDate ? '<span class="task-due"><i class="fas fa-clock"></i> ' + fmtDate(t.dueDate) + '</span>' : ''}
+            </div>
+          </div>
+        </div>
+      \`).join('');
+    }
+  } catch(e) {
+    console.error('Dashboard yuk xatosi:', e);
+    // Replace the frozen skeleton/spinner placeholders with a visible
+    // error state + retry button instead of leaving them stuck forever.
+    const kpiCards = document.getElementById('kpiCards');
+    if (kpiCards) {
+      kpiCards.innerHTML = \`
+        <div class="stat-card" style="grid-column:1/-1">
+          <div class="stat-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+          <div class="stat-info">
+            <div class="stat-label">Yuklashda xato</div>
+            <div class="stat-value" style="font-size:14px;font-weight:500">\${escHtml(e.message)}</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="loadDashboard()"><i class="fas fa-redo"></i> Qayta urinish</button>
+        </div>
+      \`;
+    }
+    const tasksEl = document.getElementById('todayTasks');
+    if (tasksEl) {
+      tasksEl.innerHTML = '<div class="empty-state" style="padding:24px"><div class="empty-state-icon"><i class="fas fa-exclamation-triangle"></i></div><h3>Yuklashda xato</h3><p>' + escHtml(e.message) + '</p></div>';
+    }
+  }
+}
+
+loadDashboard();
+</script>
+`
 }) %>
