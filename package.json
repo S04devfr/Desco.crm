@@ -9,7 +9,9 @@
     "db:init": "prisma migrate dev --name init",
     "db:seed": "node prisma/seed.js",
     "db:reset": "prisma migrate reset",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "build": "prisma generate",
+    "postinstall": "prisma generate"
   },
   "keywords": [
     "crm",
