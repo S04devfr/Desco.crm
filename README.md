@@ -6,8 +6,9 @@ Production-Ready CRM System for Sales & Logistics Business
 
 - Multi-user support with Role-Based Access Control (Admin & Manager)
 - Dashboard with KPIs, Charts & Analytics
-- Sales Pipeline/Funnel (Kanban Board)
+- Sales Pipeline/Funnel (Kanban Board with Premium Dark/Teal UI)
 - Client Management & Contact Templates
+- **[NEW]** Instagram Target Webhook Integration (Auto-Deal Generation)
 - Task Management with Daily Notifications
 - Expense & Logistics Tracking
 - Global Search Functionality
@@ -16,10 +17,11 @@ Production-Ready CRM System for Sales & Logistics Business
 ## 📋 Tech Stack
 
 - **Backend**: Node.js + Express.js
-- **Database**: SQLite (Prisma ORM)
-- **Frontend**: EJS + Tailwind CSS + Chart.js
+- **Database**: PostgreSQL (via Supabase) with Prisma ORM
+- **Frontend**: EJS + Tailwind CSS + Chart.js + Custom Glassmorphism UI
 - **Authentication**: JWT + Sessions
-- **Security**: Helmet, CORS, bcryptjs
+- **Security**: Webhook Tokens (`X-CRM-Webhook-Token`), Helmet, CORS, bcryptjs
+- **Deployment**: Railway.app Ready
 
 ## 🛠️ Installation
 
@@ -45,10 +47,13 @@ Production-Ready CRM System for Sales & Logistics Business
    cp .env.example .env
    ```
 
-4. **Initialize Database**
+4. **Database Initialization (PostgreSQL)**
    ```bash
-   npm run db:init
-   npm run db:seed
+   # Create database tables
+   npx prisma db push
+   
+   # Note: Default data (Admin user, Default Pipelines, Stages) are automatically 
+   # generated via db-migrate.js when the server starts for the first time.
    ```
 
 5. **Start Development Server**
@@ -57,6 +62,21 @@ Production-Ready CRM System for Sales & Logistics Business
    ```
 
    Server will run at: `http://localhost:3000`
+
+## 🌍 Webhook for Instagram Integrations
+**Endpoint:** `POST /api/webhooks/lead`
+To connect Instagram Lead Generation, set up a webhook in Make.com/Zapier with the following:
+- **URL**: `https://your-railway-app-url.com/api/webhooks/lead`
+- **Headers**: `X-CRM-Webhook-Token: <your-WEBHOOK_SECRET_TOKEN>`
+- **Body**: 
+```json
+{
+  "name": "Mijoz Ismi",
+  "phone": "+998901234567",
+  "productName": "Sotib olmoqchi bo'lgan mahsulot",
+  "notes": "Qo'shimcha izohlar"
+}
+```
 
 ## 📝 Login Credentials
 
