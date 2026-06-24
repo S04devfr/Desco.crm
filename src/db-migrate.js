@@ -1,140 +1,83 @@
 /**
  * DB Auto-Migration — Server startupda avtomatik ishga tushadi.
+ * PostgreSQL (Supabase) uchun moslashtirilgan.
  */
 async function runMigrations(prisma) {
   console.log('🔧 DB migration boshlandi...')
 
-  // 1. Pipeline jadvali
+  // 1. Default Pipeline
   try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "Pipeline" (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        description TEXT,
-        isDefault INTEGER NOT NULL DEFAULT 0,
-        color TEXT NOT NULL DEFAULT '#007AFF',
-        "order" INTEGER NOT NULL DEFAULT 0,
-        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
-    console.log('✅ Pipeline table ready')
-  } catch (e) { console.log('ℹ️  Pipeline:', e.message?.slice(0, 60)) }
+    const exists = await prisma.pipeline.findFirst({ where: { isDefault: true } })
+    if (!exists) {
+      await prisma.pipeline.create({
+        data: {
+          name: 'Asosiy voronka',
+          isDefault: true,
+          color: '#007AFF',
+          order: 1
+        }
+      })
+      console.log('✅ Default Pipeline yaratildi')
+    } else {
+      console.log('✅ Default Pipeline mavjud')
+    }
+  } catch (e) { console.log('ℹ️  Pipeline:', e.message?.slice(0, 80)) }
 
-  // 2. PipelineStage jadvali
+  // 2. Default stages
   try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "PipelineStage" (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        color TEXT NOT NULL DEFAULT '#5D4037',
-        "order" INTEGER NOT NULL DEFAULT 0,
-        isDefault INTEGER NOT NULL DEFAULT 0,
-        pipelineId INTEGER REFERENCES "Pipeline"(id),
-        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
-    console.log('✅ PipelineStage table ready')
-  } catch (e) { console.log('ℹ️  PipelineStage:', e.message?.slice(0, 60)) }
+    const pipeline = await prisma.pipeline.findFirst({ where: { isDefault: true } })
+    if (pipeline) {
+      const stageCount = await prisma.pipelineStage.count({ where: { pipelineId: pipeline.id } })
+      if (stageCount === 0) {
+        const stages = [
+          { name: 'Yangi', color: '#1565C0', order: 1, isDefault: true, pipelineId: pipeline.id },
+          { name: 'Muzokaralar', color: '#F57F17', order: 2, isDefault: false, pipelineId: pipeline.id },
+          { name: 'Taklif', color: '#512DA8', order: 3, isDefault: false, pipelineId: pipeline.id },
+          { name: 'Yutilgan', color: '#2E7D32', order: 4, isDefault: false, pipelineId: pipeline.id },
+          { name: "Yo'qotilgan", color: '#C62828', order: 5, isDefault: false, pipelineId: pipeline.id },
+        ]
+        for (const s of stages) {
+          await prisma.pipelineStage.create({ data: s })
+        }
+        console.log('✅ Default stages yaratildi')
+      } else {
+        console.log('✅ Default stages mavjud')
+      }
+    }
+  } catch (e) { console.log('ℹ️  Stages:', e.message?.slice(0, 80)) }
 
-  // 3. ActivityLog jadvali
+  // 3. Default company settings
   try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "ActivityLog" (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        action TEXT NOT NULL,
-        details TEXT,
-        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        dealId INTEGER REFERENCES "Deal"(id) ON DELETE CASCADE,
-        userId INTEGER REFERENCES "User"(id)
-      )
-    `)
-  } catch (e) {}
+    const settings = await prisma.companySettings.findFirst()
+    if (!settings) {
+      await prisma.companySettings.create({
+        data: { companyName: 'DESCO CRM', currency: 'UZS' }
+      })
+      console.log('✅ Default CompanySettings yaratildi')
+    }
+  } catch (e) { console.log('ℹ️  CompanySettings:', e.message?.slice(0, 80)) }
 
-  // 4. CompanySettings jadvali
+  // 4. Admin user (agar mavjud bo'lmasa)
   try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "CompanySettings" (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        companyName TEXT NOT NULL DEFAULT 'DESCO CRM',
-        currency TEXT NOT NULL DEFAULT 'UZS',
-        logoUrl TEXT,
-        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
-  } catch (e) {}
-
-  // 5–9. Ustunlar qo'shish
-  const cols = [
-    [`ALTER TABLE "Deal" ADD COLUMN "stageId" INTEGER`, 'Deal.stageId'],
-    [`ALTER TABLE "Deal" ADD COLUMN "deadline" DATETIME`, 'Deal.deadline'],
-    [`ALTER TABLE "Deal" ADD COLUMN "pipelineId" INTEGER REFERENCES "Pipeline"(id)`, 'Deal.pipelineId'],
-    [`ALTER TABLE "PipelineStage" ADD COLUMN "pipelineId" INTEGER REFERENCES "Pipeline"(id)`, 'PipelineStage.pipelineId'],
-    [`ALTER TABLE "Task" ADD COLUMN "priority" TEXT NOT NULL DEFAULT 'medium'`, 'Task.priority'],
-    [`ALTER TABLE "Task" ADD COLUMN "clientId" INTEGER REFERENCES "Client"(id)`, 'Task.clientId'],
-    [`ALTER TABLE "Client" ADD COLUMN "companyAddress" TEXT`, 'Client.companyAddress'],
-  ]
-  for (const [sql, name] of cols) {
-    try { await prisma.$executeRawUnsafe(sql); console.log('✅ ' + name + ' added') }
-    catch (e) { /* already exists */ }
-  }
-
-  // 10. Default Pipeline
-  try {
-    await prisma.$executeRawUnsafe(`
-      INSERT OR IGNORE INTO "Pipeline" (id, name, isDefault, color, "order", createdAt, updatedAt)
-      VALUES (1, 'Asosiy voronka', 1, '#007AFF', 1, datetime('now'), datetime('now'))
-    `)
-    console.log('✅ Default Pipeline ready')
-  } catch (e) { console.log('ℹ️  Pipeline default:', e.message?.slice(0, 60)) }
-
-  // 11. Default stages
-  try {
-    await prisma.$executeRawUnsafe(`
-      INSERT OR IGNORE INTO "PipelineStage" (id, name, color, "order", isDefault, pipelineId) VALUES
-        (1, 'Yangi', '#1565C0', 1, 1, 1),
-        (2, 'Muzokaralar', '#F57F17', 2, 0, 1),
-        (3, 'Taklif', '#512DA8', 3, 0, 1),
-        (4, 'Yutilgan', '#2E7D32', 4, 0, 1),
-        (5, 'Yoqotilgan', '#C62828', 5, 0, 1)
-    `)
-    console.log('✅ Default stages ready')
-  } catch (e) {}
-
-  // 12. Mavjud stage'larni pipelineId=1 ga bog'lash
-  try {
-    await prisma.$executeRawUnsafe(`UPDATE "PipelineStage" SET pipelineId=1 WHERE pipelineId IS NULL`)
-    console.log('✅ Stages linked to default pipeline')
-  } catch (e) {}
-
-  // 13. Mavjud deal'larni pipelineId=1 ga bog'lash
-  try {
-    await prisma.$executeRawUnsafe(`UPDATE "Deal" SET pipelineId=1 WHERE pipelineId IS NULL`)
-    console.log('✅ Deals linked to default pipeline')
-  } catch (e) {}
-
-  // 14. Default company settings
-  try {
-    await prisma.$executeRawUnsafe(`
-      INSERT OR IGNORE INTO "CompanySettings" (id, companyName, currency, updatedAt)
-      VALUES (1, 'DESCO CRM', 'UZS', datetime('now'))
-    `)
-  } catch (e) {}
-
-  // 15. Indexes on Deal.stageId / Deal.managerId — Kanban drag-and-drop and
-  // dashboard queries filter/group by these columns constantly, so without
-  // an index every drag-drop, column render, and KPI query does a full
-  // table scan. CREATE INDEX IF NOT EXISTS is idempotent and safe to run
-  // on every startup.
-  const indexes = [
-    [`CREATE INDEX IF NOT EXISTS "Deal_stageId_idx" ON "Deal"("stageId")`, 'Deal.stageId index'],
-    [`CREATE INDEX IF NOT EXISTS "Deal_managerId_idx" ON "Deal"("managerId")`, 'Deal.managerId index'],
-  ]
-  for (const [sql, name] of indexes) {
-    try { await prisma.$executeRawUnsafe(sql); console.log('✅ ' + name + ' ready') }
-    catch (e) { console.log('ℹ️  ' + name + ':', e.message?.slice(0, 60)) }
-  }
+    const bcrypt = require('bcryptjs')
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@desco.com'
+    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123'
+    const existing = await prisma.user.findUnique({ where: { email: adminEmail } })
+    if (!existing) {
+      const hash = await bcrypt.hash(adminPassword, 12)
+      await prisma.user.create({
+        data: {
+          email: adminEmail,
+          password: hash,
+          fullName: 'Administrator',
+          role: 'admin'
+        }
+      })
+      console.log('✅ Admin user yaratildi: ' + adminEmail)
+    } else {
+      console.log('✅ Admin user mavjud')
+    }
+  } catch (e) { console.log('ℹ️  Admin user:', e.message?.slice(0, 80)) }
 
   console.log('✅ DB migration tugadi')
 }
