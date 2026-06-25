@@ -3,27 +3,47 @@ const bcrypt = require('bcryptjs')
 const prisma = new PrismaClient()
 
 async function main() {
-  // Avval bazani tozalash
+  // Avval bazani tozalash (tartib: bog'liqlik bo'yicha)
+  await prisma.instagramMessage.deleteMany()
   await prisma.task.deleteMany()
   await prisma.expense.deleteMany()
-  try { await prisma.$executeRawUnsafe('DELETE FROM "ActivityLog"') } catch(e) {}
+  await prisma.activityLog.deleteMany()
   await prisma.deal.deleteMany()
   await prisma.client.deleteMany()
+  await prisma.pipelineStage.deleteMany()
+  await prisma.pipeline.deleteMany()
   await prisma.user.deleteMany()
-  try { await prisma.$executeRawUnsafe('DELETE FROM "PipelineStage"') } catch(e) {}
+  await prisma.companySettings.deleteMany()
+
+  // Default pipeline yaratish
+  const pipeline = await prisma.pipeline.create({
+    data: {
+      name: 'Asosiy voronka',
+      isDefault: true,
+      color: '#007AFF',
+      order: 1
+    }
+  })
 
   // Default pipeline bosqichlari
-  try {
-    await prisma.$executeRawUnsafe(`
-      INSERT INTO "PipelineStage" (id, name, color, "order", isDefault, createdAt, updatedAt) VALUES
-        (1, 'Yangi', '#1565C0', 1, 1, datetime('now'), datetime('now')),
-        (2, 'Muzokaralar', '#F57F17', 2, 0, datetime('now'), datetime('now')),
-        (3, 'Taklif', '#512DA8', 3, 0, datetime('now'), datetime('now')),
-        (4, 'Yutilgan', '#2E7D32', 4, 0, datetime('now'), datetime('now')),
-        (5, 'Yoqotilgan', '#C62828', 5, 0, datetime('now'), datetime('now'))
-    `)
-    console.log('✅ Pipeline stages seeded')
-  } catch(e) { console.log('Pipeline stages error:', e.message) }
+  const stages = await Promise.all([
+    prisma.pipelineStage.create({
+      data: { name: 'Yangi', color: '#1565C0', order: 1, isDefault: true, pipelineId: pipeline.id }
+    }),
+    prisma.pipelineStage.create({
+      data: { name: 'Muzokaralar', color: '#F57F17', order: 2, isDefault: false, pipelineId: pipeline.id }
+    }),
+    prisma.pipelineStage.create({
+      data: { name: 'Taklif', color: '#512DA8', order: 3, isDefault: false, pipelineId: pipeline.id }
+    }),
+    prisma.pipelineStage.create({
+      data: { name: 'Yutilgan', color: '#2E7D32', order: 4, isDefault: false, pipelineId: pipeline.id }
+    }),
+    prisma.pipelineStage.create({
+      data: { name: "Yo'qotilgan", color: '#C62828', order: 5, isDefault: false, pipelineId: pipeline.id }
+    }),
+  ])
+  console.log('✅ Pipeline va stages yaratildi')
 
   const adminPassword = await bcrypt.hash('Admin@123', 10)
   const managerPassword = await bcrypt.hash('Manager@123', 10)
@@ -66,21 +86,45 @@ async function main() {
     data: { name: 'Dilnoza Yusupova', phone: '+998901112233', email: 'dilnoza@example.com', company: 'Dilnoza Trade', ownerId: manager2.id }
   })
 
-  // Sdelkalar (stageId bilan)
+  // Sdelkalar (Prisma ORM orqali — SQLite raw query emas)
   const deal1 = await prisma.deal.create({
-    data: { productName: 'Noutbuk', amount: 8000000, paidAmount: 8000000, status: 'won', clientId: client1.id, managerId: manager1.id }
+    data: {
+      productName: 'Noutbuk',
+      amount: 8000000,
+      paidAmount: 8000000,
+      status: 'won',
+      clientId: client1.id,
+      managerId: manager1.id,
+      stageId: stages[3].id,      // Yutilgan
+      pipelineId: pipeline.id
+    }
   })
-  try { await prisma.$executeRawUnsafe('UPDATE "Deal" SET stageId=4 WHERE id=?', deal1.id) } catch(e) {}
 
   const deal2 = await prisma.deal.create({
-    data: { productName: 'Telefon', amount: 4500000, paidAmount: 2000000, status: 'new', clientId: client2.id, managerId: manager2.id }
+    data: {
+      productName: 'Telefon',
+      amount: 4500000,
+      paidAmount: 2000000,
+      status: 'new',
+      clientId: client2.id,
+      managerId: manager2.id,
+      stageId: stages[1].id,      // Muzokaralar
+      pipelineId: pipeline.id
+    }
   })
-  try { await prisma.$executeRawUnsafe('UPDATE "Deal" SET stageId=2 WHERE id=?', deal2.id) } catch(e) {}
 
   const deal3 = await prisma.deal.create({
-    data: { productName: 'Monitor', amount: 1500000, paidAmount: 1500000, status: 'won', clientId: client1.id, managerId: manager1.id }
+    data: {
+      productName: 'Monitor',
+      amount: 1500000,
+      paidAmount: 1500000,
+      status: 'won',
+      clientId: client1.id,
+      managerId: manager1.id,
+      stageId: stages[2].id,      // Taklif
+      pipelineId: pipeline.id
+    }
   })
-  try { await prisma.$executeRawUnsafe('UPDATE "Deal" SET stageId=3 WHERE id=?', deal3.id) } catch(e) {}
 
   // Xarajatlar
   await prisma.expense.create({
@@ -101,6 +145,11 @@ async function main() {
 
   await prisma.task.create({
     data: { title: 'Dilnoza uchun hujjat tayyorlash', dueDate: today, dueTime: '17:00', assignedToId: manager2.id }
+  })
+
+  // Default company settings
+  await prisma.companySettings.create({
+    data: { companyName: 'DESCO CRM', currency: 'UZS' }
   })
 }
 

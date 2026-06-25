@@ -56,14 +56,14 @@ router.post('/webhook', async (req, res) => {
                 // Auto-create a Deal for this new client
                 // Find the default pipeline and its first stage
                 const pipeline = await prisma.pipeline.findFirst({
-                  where: { isDefault: 1 },
+                  where: { isDefault: true },
                   include: { stages: { orderBy: { order: 'asc' }, take: 1 } }
                 });
 
                 if (pipeline && pipeline.stages.length > 0) {
                   await prisma.deal.create({
                     data: {
-                      name: `Instagram Lead - ${senderId}`,
+                      productName: `Instagram Lead - ${senderId}`,
                       clientId: client.id,
                       pipelineId: pipeline.id,
                       stageId: pipeline.stages[0].id,

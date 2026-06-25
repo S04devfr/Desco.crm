@@ -9,8 +9,8 @@ router.use(protect)
 // ── COMPANY SETTINGS ──
 async function getCompanySettings() {
   try {
-    const rows = await prisma.$queryRawUnsafe('SELECT * FROM "CompanySettings" LIMIT 1')
-    return rows[0] || { id: 1, companyName: 'DESCO CRM', currency: 'UZS', logoUrl: null }
+    const settings = await prisma.companySettings.findFirst()
+    return settings || { id: 1, companyName: 'DESCO CRM', currency: 'UZS', logoUrl: null }
   } catch (e) {
     return { id: 1, companyName: 'DESCO CRM', currency: 'UZS', logoUrl: null }
   }
@@ -25,22 +25,25 @@ router.get('/company', async (req, res, next) => {
 router.patch('/company', async (req, res, next) => {
   try {
     const { companyName, currency, logoUrl } = req.body
-    const existing = await getCompanySettings()
-    const newName = companyName || existing.companyName
-    const newCurrency = currency || existing.currency
-    const newLogo = logoUrl !== undefined ? logoUrl : existing.logoUrl
+    const existing = await prisma.companySettings.findFirst()
 
-    const count = await prisma.$queryRawUnsafe('SELECT COUNT(*) as cnt FROM "CompanySettings"')
-    if (Number(count[0]?.cnt || 0) === 0) {
-      await prisma.$executeRawUnsafe(
-        'INSERT INTO "CompanySettings" (companyName, currency, logoUrl, updatedAt) VALUES (?,?,?,datetime("now"))',
-        newName, newCurrency, newLogo
-      )
+    if (!existing) {
+      await prisma.companySettings.create({
+        data: {
+          companyName: companyName || 'DESCO CRM',
+          currency: currency || 'UZS',
+          logoUrl: logoUrl !== undefined ? logoUrl : null
+        }
+      })
     } else {
-      await prisma.$executeRawUnsafe(
-        'UPDATE "CompanySettings" SET companyName=?, currency=?, logoUrl=?, updatedAt=datetime("now") WHERE id=1',
-        newName, newCurrency, newLogo
-      )
+      const data = {}
+      if (companyName !== undefined) data.companyName = companyName
+      if (currency !== undefined) data.currency = currency
+      if (logoUrl !== undefined) data.logoUrl = logoUrl
+      await prisma.companySettings.update({
+        where: { id: existing.id },
+        data
+      })
     }
     res.json(await getCompanySettings())
   } catch (error) { next(error) }
