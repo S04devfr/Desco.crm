@@ -6,32 +6,17 @@ const companyCurrency = (typeof company !== 'undefined' && company && company.cu
 const usersList = (typeof users !== 'undefined' && Array.isArray(users)) ? users : [];
 const pipelinesList = (typeof pipelines !== 'undefined' && Array.isArray(pipelines)) ? pipelines : [];
 
-let usersRowsHtml = '';
-if (usersList.length) {
-  usersRowsHtml = usersList.map(u => `
-    <tr>
-      <td><strong>${escHtml(u.fullName||'—')}</strong></td>
-      <td>${escHtml(u.email)}</td>
-      <td><span class="badge ${u.role==='admin'?'badge-purple':'badge-blue'}">${u.role==='admin'?'Admin':'Manager'}</span></td>
-      <td style="color:var(--text-tertiary);font-size:12px">${new Date(u.createdAt).toLocaleDateString('uz-UZ')}</td>
-      <td><button class="btn btn-ghost btn-icon btn-sm text-danger" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button></td>
-    </tr>
-  `).join('');
-} else {
-  usersRowsHtml = `<tr><td colspan="5"><div class="empty-state" style="padding:24px"><h3>Foydalanuvchilar yo'q</h3></div></td></tr>`;
-}
-
 const colorSwatches = ['#007AFF','#34C759','#FF9500','#FF3B30','#5856D6','#00C7BE','#FF2D55','#1565C0','#2E7D32','#C62828'];
 const swatchHtml = colorSwatches.map(c =>
   `<div style="width:22px;height:22px;border-radius:50%;background:${c};cursor:pointer;border:2px solid transparent;flex-shrink:0"
     onclick="pickColor('${c}',this)"></div>`
 ).join('');
 %>
-<%- include('../layouts/base', {
+<%- include('../layouts/header', {
   title: 'Sozlamalar — DESCO CRM',
   activePage: 'settings',
-  user: user,
-  body: `
+  user: user}) %>
+
 <style>
 .pipeline-card {
   border:1px solid var(--glass-border); border-radius:10px; margin-bottom:12px;
@@ -56,98 +41,240 @@ const swatchHtml = colorSwatches.map(c =>
 .stage-color { width:8px; height:28px; border-radius:4px; flex-shrink:0; }
 .stage-name-txt { flex:1; font-size:13.5px; font-weight:500; }
 .stage-order { font-size:11px; color:var(--text-tertiary); }
+
+/* ── Settings Layout ── */
+.settings-layout {
+  display: flex; gap: 24px; align-items: flex-start; height: 100%;
+}
+.settings-sidebar {
+  width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 6px;
+}
+.settings-tab {
+  padding: 10px 14px; font-size: 13.5px; font-weight: 500; color: var(--text-secondary);
+  border-radius: 8px; cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; gap: 10px;
+}
+.settings-tab i { width: 16px; text-align: center; color: var(--text-tertiary); }
+.settings-tab:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.settings-tab:hover i { color: var(--text-secondary); }
+.settings-tab.active { background: var(--accent); color: #fff; font-weight: 600; box-shadow: 0 4px 12px rgba(0,122,255,0.2); }
+.settings-tab.active i { color: #fff; }
+
+.settings-content {
+  flex: 1; min-width: 0;
+}
+.settings-pane {
+  display: none; animation: fadeIn 0.2s ease;
+}
+.settings-pane.active {
+  display: block;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
 </style>
 
 <div class="page-header">
   <div><h1>Sozlamalar</h1><p>Voronkalar, bosqichlar va tizim sozlamalari</p></div>
 </div>
 
-<!-- VORONKALAR (PIPELINES) -->
-<div class="settings-section" id="pipelinesSection">
-  <div class="settings-section-header">
-    <i class="fas fa-filter" style="color:var(--accent)"></i>
-    <h3>Voronkalar (Pipeline)</h3>
-    <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openPipelineModal()">
-      <i class="fas fa-plus"></i> Yangi voronka
-    </button>
+<div class="settings-layout">
+  <!-- Sidebar -->
+  <div class="settings-sidebar">
+    <div class="settings-tab active" onclick="switchTab('profile', this)"><i class="fas fa-user"></i> Mening profilim</div>
+    <div class="settings-tab" onclick="switchTab('company', this)"><i class="fas fa-building"></i> Kompaniya</div>
+    <div class="settings-tab" onclick="switchTab('pipelines', this)"><i class="fas fa-filter"></i> Voronkalar</div>
+    <% if (isAdmin) { %><div class="settings-tab" onclick="switchTab('users', this)"><i class="fas fa-users"></i> Jamoa va rollar</div><% } %>
+    <div class="settings-tab" onclick="switchTab('integrations', this)"><i class="fas fa-plug"></i> Integratsiyalar</div>
   </div>
-  <div class="settings-section-body" id="pipelineList">
-    ${pipelinesList.length ? pipelinesList.map(p => `
-      <div class="pipeline-card" id="pc-${p.id}">
-        <div class="pipeline-card-hdr" onclick="togglePipeline(${p.id})">
-          <div class="p-dot" style="background:${p.color}"></div>
-          <div class="pipeline-card-title">${escHtml(p.name)} ${p.isDefault?'<span class="badge badge-blue" style="font-size:9px;padding:1px 6px">Default</span>':''}</div>
-          <div class="pipeline-card-meta">${(p.stages||[]).length} bosqich</div>
-          <div style="display:flex;gap:4px">
-            <button class="btn btn-ghost btn-icon btn-sm" onclick="event.stopPropagation();openPipelineModal(${p.id})" title="Tahrirlash"><i class="fas fa-edit"></i></button>
-            <button class="btn btn-ghost btn-icon btn-sm text-danger" onclick="event.stopPropagation();deletePipeline(${p.id})" title="O'chirish"><i class="fas fa-trash"></i></button>
-          </div>
-          <i class="fas fa-chevron-down" id="pch-${p.id}" style="font-size:11px;color:var(--text-tertiary);transition:transform 0.2s"></i>
+
+  <!-- Content -->
+  <div class="settings-content">
+    
+    <!-- 1. PROFILE -->
+    <div class="settings-pane active" id="pane-profile">
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <i class="fas fa-user" style="color:var(--accent)"></i>
+          <h3>Shaxsiy ma'lumotlar</h3>
         </div>
-        <div class="pipeline-card-body" id="pb-${p.id}">
-          ${(p.stages||[]).length ? (p.stages||[]).map(s => `
-            <div class="stage-row" id="sr-${s.id}">
-              <div class="stage-color" style="background:${s.color}"></div>
-              <div class="stage-name-txt">${escHtml(s.name)}</div>
-              <div class="stage-order">#${s.order}</div>
-              <div style="display:flex;gap:3px">
-                <button class="btn btn-ghost btn-icon btn-sm" onclick="openStageModal(${p.id},${s.id},'${escHtml(s.name)}','${s.color}')" title="Tahrirlash"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-ghost btn-icon btn-sm text-danger" onclick="deleteStage(${p.id},${s.id})" title="O'chirish"><i class="fas fa-trash"></i></button>
-              </div>
+        <div class="settings-section-body">
+          <div class="form-grid form-grid-2">
+            <div class="form-group">
+              <label class="form-label">To'liq ismingiz</label>
+              <input type="text" id="prof-fullName" class="form-control" value="<%= escHtml(user.fullName) %>">
             </div>
-          `).join('') : '<div style="color:var(--text-tertiary);font-size:13px;padding:8px 0">Bosqichlar yo\'q</div>'}
-          <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openStageModal(${p.id})">
-            <i class="fas fa-plus"></i> Bosqich qo'shish
+            <div class="form-group">
+              <label class="form-label">Email manzilingiz</label>
+              <input type="email" id="prof-email" class="form-control" value="<%= escHtml(user.email) %>">
+            </div>
+          </div>
+          <div style="height: 1px; background: var(--glass-border); margin: 20px 0;"></div>
+          <h4 style="font-size: 14px; margin-bottom: 12px; color: var(--text-primary);"><i class="fas fa-lock" style="color:var(--text-tertiary);margin-right:6px"></i> Parolni o'zgartirish</h4>
+          <div class="form-grid form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Joriy parol</label>
+              <input type="password" id="prof-currentPassword" class="form-control" placeholder="Hozirgi parolingiz">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Yangi parol</label>
+              <input type="password" id="prof-newPassword" class="form-control" placeholder="Kamida 6 ta belgi">
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="saveProfile()" style="margin-top:10px"><i class="fas fa-save"></i> Saqlash</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. COMPANY -->
+    <div class="settings-pane" id="pane-company">
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <i class="fas fa-building" style="color:var(--accent)"></i>
+          <h3>Kompaniya ma'lumotlari</h3>
+        </div>
+        <div class="settings-section-body">
+          <div class="form-grid form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Kompaniya nomi</label>
+              <input type="text" id="s-companyName" class="form-control" value="<%= escHtml(companyName) %>">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Valyuta</label>
+              <select id="s-currency" class="form-control">
+                <option value="UZS" <%= companyCurrency==='UZS' ? 'selected' : '' %>>UZS — So'm</option>
+                <option value="USD" <%= companyCurrency==='USD' ? 'selected' : '' %>>USD — Dollar</option>
+                <option value="EUR" <%= companyCurrency==='EUR' ? 'selected' : '' %>>EUR — Euro</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="saveCompany()"><i class="fas fa-save"></i> Saqlash</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. PIPELINES -->
+    <div class="settings-pane" id="pane-pipelines">
+      <div class="settings-section" id="pipelinesSection">
+        <div class="settings-section-header">
+          <i class="fas fa-filter" style="color:var(--accent)"></i>
+          <h3>Voronkalar (Pipeline)</h3>
+          <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openPipelineModal()">
+            <i class="fas fa-plus"></i> Yangi voronka
           </button>
         </div>
-      </div>
-    `).join('') : '<div class="empty-state" style="padding:40px"><div class="empty-state-icon"><i class="fas fa-filter"></i></div><h3>Voronkalar yo\'q</h3><p>Yangi voronka yarating</p></div>'}
-  </div>
-</div>
-
-<!-- COMPANY -->
-<div class="settings-section">
-  <div class="settings-section-header">
-    <i class="fas fa-building" style="color:var(--accent)"></i>
-    <h3>Kompaniya ma'lumotlari</h3>
-  </div>
-  <div class="settings-section-body">
-    <div class="form-grid form-grid-2">
-      <div class="form-group">
-        <label class="form-label">Kompaniya nomi</label>
-        <input type="text" id="s-companyName" class="form-control" value="${escHtml(companyName)}">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Valyuta</label>
-        <select id="s-currency" class="form-control">
-          <option value="UZS" ${companyCurrency==='UZS'?'selected':''}>UZS — So'm</option>
-          <option value="USD" ${companyCurrency==='USD'?'selected':''}>USD — Dollar</option>
-          <option value="EUR" ${companyCurrency==='EUR'?'selected':''}>EUR — Euro</option>
-        </select>
+        <div class="settings-section-body" id="pipelineList">
+          <% if ((pipelinesList || []).length) { %>
+            <% (pipelinesList || []).forEach(p => { %>
+            <div class="pipeline-card" id="pc-<%= p.id %>">
+              <div class="pipeline-card-hdr" onclick="togglePipeline(<%= p.id %>)">
+                <div class="p-dot" style="background:<%= p.color %>"></div>
+                <div class="pipeline-card-title"><%= escHtml(p.name) %> <%- p.isDefault?'<span class="badge badge-blue" style="font-size:9px;padding:1px 6px">Default</span>':'' %></div>
+                <div class="pipeline-card-meta"><%= (p.stages||[]).length %> bosqich</div>
+                <div style="display:flex;gap:4px">
+                  <button class="btn btn-ghost btn-icon btn-sm" onclick="event.stopPropagation();openPipelineModal(<%= p.id %>)" title="Tahrirlash"><i class="fas fa-edit"></i></button>
+                  <button class="btn btn-ghost btn-icon btn-sm text-danger" onclick="event.stopPropagation();deletePipeline(<%= p.id %>)" title="O'chirish"><i class="fas fa-trash"></i></button>
+                </div>
+                <i class="fas fa-chevron-down" id="pch-<%= p.id %>" style="font-size:11px;color:var(--text-tertiary);transition:transform 0.2s"></i>
+              </div>
+              <div class="pipeline-card-body" id="pb-<%= p.id %>">
+                <% if ((p.stages||[]).length) { %>
+                  <% p.stages.forEach(s => { %>
+                  <div class="stage-row" id="sr-<%= s.id %>">
+                    <div class="stage-color" style="background:<%= s.color %>"></div>
+                    <div class="stage-name-txt"><%= escHtml(s.name) %></div>
+                    <div class="stage-order">#<%= s.order %></div>
+                    <div style="display:flex;gap:3px">
+                      <button class="btn btn-ghost btn-icon btn-sm" onclick="openStageModal(<%= p.id %>,<%= s.id %>,'<%= escHtml(s.name) %>','<%= s.color %>')" title="Tahrirlash"><i class="fas fa-edit"></i></button>
+                      <button class="btn btn-ghost btn-icon btn-sm text-danger" onclick="deleteStage(<%= p.id %>,<%= s.id %>)" title="O'chirish"><i class="fas fa-trash"></i></button>
+                    </div>
+                  </div>
+                  <% }) %>
+                <% } else { %>
+                  <div style="color:var(--text-tertiary);font-size:13px;padding:8px 0">Hech qanday bosqich topilmadi</div>
+                <% } %>
+                <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openStageModal(<%= p.id %>)">
+                  <i class="fas fa-plus"></i> Bosqich qo'shish
+                </button>
+              </div>
+            </div>
+            <% }) %>
+          <% } else { %>
+            <div class="empty-state" style="padding:40px"><div class="empty-state-icon"><i class="fas fa-filter"></i></div><h3>Hech qanday voronka topilmadi</h3><p>Yangi voronka yarating</p></div>
+          <% } %>
+        </div>
       </div>
     </div>
-    <button class="btn btn-primary btn-sm" onclick="saveCompany()"><i class="fas fa-save"></i> Saqlash</button>
-  </div>
-</div>
 
-<!-- USERS -->
-${isAdmin ? `
-<div class="settings-section">
-  <div class="settings-section-header">
-    <i class="fas fa-users" style="color:var(--accent)"></i>
-    <h3>Foydalanuvchilar</h3>
-    <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openUserModal()"><i class="fas fa-plus"></i> Qo'shish</button>
-  </div>
-  <div class="settings-section-body">
-    <div class="table-wrapper">
-      <table class="data-table">
-        <thead><tr><th>Ism</th><th>Email</th><th>Rol</th><th>Qo'shilgan</th><th></th></tr></thead>
-        <tbody>${usersRowsHtml}</tbody>
-      </table>
+    <!-- 4. USERS -->
+    <% if (isAdmin) { %>
+    <div class="settings-pane" id="pane-users">
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <i class="fas fa-users" style="color:var(--accent)"></i>
+          <h3>Foydalanuvchilar</h3>
+          <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openUserModal()"><i class="fas fa-plus"></i> Qo'shish</button>
+        </div>
+        <div class="settings-section-body">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead><tr><th>Ism</th><th>Email</th><th>Rol</th><th>Qo'shilgan</th><th></th></tr></thead>
+              <tbody>
+                <% if ((usersList || []).length) { %>
+                  <% (usersList || []).forEach(u => { %>
+                  <tr>
+                    <td><strong><%= escHtml(u.fullName||'—') %></strong></td>
+                    <td><%= escHtml(u.email) %></td>
+                    <td><span class="badge <%= u.role==='admin'?'badge-purple':'badge-blue' %>"><%= u.role==='admin'?'Admin':'Manager' %></span></td>
+                    <td style="color:var(--text-tertiary);font-size:12px"><%= new Date(u.createdAt).toLocaleDateString('uz-UZ') %></td>
+                    <td><button class="btn btn-ghost btn-icon btn-sm text-danger" onclick="deleteUser(<%= u.id %>)"><i class="fas fa-trash"></i></button></td>
+                  </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr><td colspan="5"><div class="empty-state" style="padding:24px"><h3>Foydalanuvchilar yo'q</h3></div></td></tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
+    <% } %>
+
+    <!-- 5. INTEGRATIONS -->
+    <div class="settings-pane" id="pane-integrations">
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <i class="fas fa-plug" style="color:var(--accent)"></i>
+          <h3>Integratsiyalar</h3>
+        </div>
+        <div class="settings-section-body">
+          <div style="display:flex; align-items:flex-start; gap:12px; margin-bottom: 20px; background: rgba(225, 48, 108, 0.08); border: 1px solid rgba(225, 48, 108, 0.2); padding: 16px; border-radius: 12px;">
+            <i class="fab fa-instagram" style="color: #E1306C; font-size: 24px; margin-top: 2px;"></i>
+            <div>
+              <h4 style="margin-bottom: 4px; color: var(--text-primary);">Instagram Lead Ads</h4>
+              <p style="font-size: 13px; color: var(--text-secondary); margin: 0; line-height: 1.5;">Facebook va Instagram orqali kelgan formalarni avtomatik tarzda Sdelkalar bo'limiga tushishi uchun Webhook manzilini Meta For Developers paneliga ulang.</p>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Webhook Callback URL</label>
+            <div style="display:flex; gap:8px;">
+              <input type="text" class="form-control" id="webhookUrlInput" value="https://<DOMEN_NOMI>/api/webhooks/instagram" readonly style="font-family: monospace; flex: 1; background: var(--bg-tertiary);">
+              <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('webhookUrlInput', this)"><i class="fas fa-copy"></i> Nusxalash</button>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:16px;">
+            <label class="form-label">Verify Token (Tasdiqlash kodi)</label>
+            <div style="display:flex; gap:8px;">
+              <input type="text" class="form-control" id="webhookTokenInput" value="desco-secret-token-123" readonly style="font-family: monospace; background: var(--bg-tertiary);">
+              <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('webhookTokenInput', this)"><i class="fas fa-copy"></i> Nusxalash</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
-` : ''}
 
 <!-- PIPELINE MODAL -->
 <div class="modal-overlay hidden" id="pipelineModal">
@@ -167,7 +294,7 @@ ${isAdmin ? `
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input type="color" id="p-color" value="#007AFF"
             style="width:44px;height:36px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;padding:2px">
-          <div style="display:flex;gap:6px;flex-wrap:wrap">${swatchHtml.replace(/pickColor/g,'pickPipelineColor')}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><%- swatchHtml.replace(/pickColor/g,'pickPipelineColor') %></div>
         </div>
       </div>
       <div class="form-group">
@@ -206,7 +333,7 @@ ${isAdmin ? `
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input type="color" id="st-color" value="#007AFF"
             style="width:44px;height:36px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;padding:2px">
-          <div style="display:flex;gap:6px;flex-wrap:wrap">${swatchHtml}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><%- swatchHtml %></div>
         </div>
       </div>
     </div>
@@ -240,6 +367,71 @@ ${isAdmin ? `
 </div>
 
 <script>
+// ── Settings Tab Switching ──
+function switchTab(tabId, el) {
+  // Update tabs
+  document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  
+  // Update panes
+  document.querySelectorAll('.settings-pane').forEach(p => p.classList.remove('active'));
+  const targetPane = document.getElementById('pane-' + tabId);
+  if(targetPane) targetPane.classList.add('active');
+}
+
+// ── Profile Saving ──
+async function saveProfile() {
+  const fullName = document.getElementById('prof-fullName').value.trim();
+  const email = document.getElementById('prof-email').value.trim();
+  const currentPassword = document.getElementById('prof-currentPassword').value.trim();
+  const newPassword = document.getElementById('prof-newPassword').value.trim();
+
+  const body = {};
+  if (fullName) body.fullName = fullName;
+  if (email) body.email = email;
+  if (newPassword) {
+    if (!currentPassword) { showToast('Joriy parolni kiritish majburiy', 'error'); return; }
+    body.currentPassword = currentPassword;
+    body.newPassword = newPassword;
+  }
+
+  if (Object.keys(body).length === 0) return;
+
+  try {
+    const r = await fetch('/api/settings/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.message || 'Xato yuz berdi');
+    
+    showToast('Profil muvaffaqiyatli yangilandi', 'success');
+    document.getElementById('prof-currentPassword').value = '';
+    document.getElementById('prof-newPassword').value = '';
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ── Copy to Clipboard ──
+function copyToClipboard(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.select();
+  document.execCommand('copy');
+  
+  const originalHtml = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-check"></i> Nusxalandi';
+  btn.classList.add('btn-primary');
+  btn.classList.remove('btn-secondary');
+  setTimeout(() => {
+    btn.innerHTML = originalHtml;
+    btn.classList.add('btn-secondary');
+    btn.classList.remove('btn-primary');
+  }, 2000);
+}
+
 function pickColor(c, el) {
   document.getElementById('st-color').value = c;
   el.closest('div').querySelectorAll('div').forEach(d => d.style.borderColor = 'transparent');
@@ -410,5 +602,4 @@ async function deleteUser(id) {
   } catch(e) { showToast(e.message || "O'chirishda xato", 'error'); }
 }
 </script>
-`
-}) %>
+<%- include('../layouts/footer') %>

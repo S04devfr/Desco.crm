@@ -10,7 +10,7 @@
     "db:seed": "node prisma/seed.js",
     "db:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
-    "build": "prisma generate && prisma db push",
+    "build": "prisma generate",
     "postinstall": "prisma generate"
   },
   "keywords": [
@@ -23,6 +23,7 @@
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "^5.7.0",
+    "@supabase/supabase-js": "^2.108.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -33,12 +34,13 @@
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
     "prisma": "^5.7.0",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }

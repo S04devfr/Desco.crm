@@ -65,7 +65,7 @@ router.post('/', async (req, res, next) => {
 // Update client
 router.patch('/:id', async (req, res, next) => {
   try {
-    const { name, phone, email, company, notes } = req.body
+    const { name, phone, email, company, notes, debt } = req.body
 
     const data = {}
     if (name !== undefined) data.name = name
@@ -73,6 +73,7 @@ router.patch('/:id', async (req, res, next) => {
     if (email !== undefined) data.email = email
     if (company !== undefined) data.company = company
     if (notes !== undefined) data.notes = notes
+    if (debt !== undefined) data.debt = Number(debt) || 0
 
     const client = await prisma.client.update({
       where: { id: Number(req.params.id) },

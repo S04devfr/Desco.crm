@@ -43,6 +43,40 @@ async function runMigrations(prisma) {
       } else {
         console.log('✅ Default stages mavjud')
       }
+
+      // Ensure V2 Nasiya stages exist
+      const nasiyaStages = [
+        { name: 'Shopirdagi pul', color: '#007AFF' },
+        { name: 'Nasiya Desco', color: '#34C759' },
+        { name: 'Nasiya Ishonch', color: '#FF9500' },
+        { name: 'Nasiya Baraka', color: '#FF3B30' }
+      ]
+      let maxOrderRow = await prisma.pipelineStage.findFirst({
+        where: { pipelineId: pipeline.id },
+        orderBy: { order: 'desc' }
+      })
+      let nextOrder = maxOrderRow ? maxOrderRow.order + 1 : 1
+
+      for (const ns of nasiyaStages) {
+        const stageExists = await prisma.pipelineStage.findFirst({
+          where: {
+            pipelineId: pipeline.id,
+            name: { equals: ns.name, mode: 'insensitive' }
+          }
+        })
+        if (!stageExists) {
+          await prisma.pipelineStage.create({
+            data: {
+              name: ns.name,
+              color: ns.color,
+              order: nextOrder++,
+              isDefault: false,
+              pipelineId: pipeline.id
+            }
+          })
+          console.log(`✅ Nasiya stage yaratildi: ${ns.name}`)
+        }
+      }
     }
   } catch (e) { console.log('ℹ️  Stages:', e.message?.slice(0, 80)) }
 

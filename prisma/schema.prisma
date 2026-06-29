@@ -32,6 +32,8 @@ model Client {
   company   String?
   companyAddress String?
   notes     String?
+  city      String?
+  debt      Float    @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -81,6 +83,7 @@ model Deal {
   productName String
   amount      Float     @default(0)
   paidAmount  Float     @default(0)
+  costPrice   Float     @default(0)
   status      String    @default("new")
   notes       String?
   deadline    DateTime?
@@ -101,6 +104,7 @@ model Deal {
 
   tasks      Task[]
   activities ActivityLog[]
+  installments Installment[]
 
   @@index([stageId])
   @@index([managerId])
@@ -183,4 +187,51 @@ model InstagramMessage {
 
   clientId  Int?
   client    Client?  @relation(fields: [clientId], references: [id])
+}
+
+model Installment {
+  id          Int      @id @default(autoincrement())
+  dealId      Int
+  deal        Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  dueDate     DateTime
+  amount      Float    @default(0)
+  paid        Boolean  @default(false)
+  productName String?
+  month       String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ProductCatalog {
+  id        Int      @id @default(autoincrement())
+  name      String
+  price     Float    @default(0)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Shopir {
+  id         Int      @id @default(autoincrement())
+  name       String
+  phone      String?
+  region     String?
+  price      Float    @default(0)
+  travelCost Float    @default(0)
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model IshonchFilial {
+  id         Int      @id @default(autoincrement())
+  name       String
+  phone      String?
+  region     String?
+  price      Float    @default(0)
+  travelCost Float    @default(0)
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

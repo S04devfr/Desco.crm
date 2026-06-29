@@ -4,6 +4,8 @@ const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
 const session = require('express-session');
+const http = require('http');
+const { WebSocketServer } = require('ws');
 
 dotenv.config();
 
@@ -46,16 +48,20 @@ app.get('/api/health', (req, res) => res.json({ status: 'OK', message: 'DESCO CR
 app.use('/api/auth',            require('./routes/auth'));
 app.use('/api/dashboard',       require('./routes/dashboard'));
 app.use('/api/deals',           require('./routes/deals'));
+app.use('/api/nasiya',          require('./routes/nasiya'));
+app.use('/api/extra',           require('./routes/extra'));
 app.use('/api/clients',         require('./routes/clients'));
 app.use('/api/expenses',        require('./routes/expenses'));
 app.use('/api/tasks',           require('./routes/tasks'));
 app.use('/api/notifications',   require('./routes/notifications'));
+app.use('/api/product-catalog', require('./routes/productCatalog'));
 app.use('/api/search',          require('./routes/search'));
 app.use('/api/pipeline-stages', require('./routes/pipeline'));
 app.use('/api/pipelines',       require('./routes/pipelines'));
 app.use('/api/settings',        require('./routes/settings'));
 app.use('/api/instagram',       require('./routes/instagram'));
 app.use('/api/webhooks',        require('./routes/webhooks'));
+app.use('/api/ai',              require('./routes/ai'));
 
 // ── PAGE ROUTES ──
 function requireAuth(req, res, next) {
@@ -70,8 +76,13 @@ app.get('/', requireAuth, (req, res) => res.render('dashboard/index', { user: re
 app.get('/deals',    requireAuth, (req, res) => res.render('deals/index',    { user: req.session.user, activePage: 'deals' }));
 app.get('/clients',  requireAuth, (req, res) => res.render('clients/index',  { user: req.session.user, activePage: 'clients' }));
 app.get('/expenses', requireAuth, (req, res) => res.render('expenses/index', { user: req.session.user, activePage: 'expenses' }));
+app.get('/extra/drivers',  requireAuth, (req, res) => res.render('extra/index',  { user: req.session.user, activePage: 'extra-drivers', subPage: 'drivers' }));
+app.get('/extra/branches', requireAuth, (req, res) => res.render('extra/index',  { user: req.session.user, activePage: 'extra-branches', subPage: 'branches' }));
 app.get('/tasks',    requireAuth, (req, res) => res.render('tasks/index',    { user: req.session.user, activePage: 'tasks' }));
 app.get('/instagram', requireAuth, (req, res) => res.render('instagram/index', { user: req.session.user, activePage: 'instagram' }));
+app.get('/ai',        requireAuth, (req, res) => res.render('ai/index',        { user: req.session.user, activePage: 'ai' }));
+app.get('/nasiya',   requireAuth, (req, res) => res.render('deals/index',    { user: req.session.user, activePage: 'nasiya' }));
+app.get('/nasiya/list', requireAuth, (req, res) => res.render('nasiya/index', { user: req.session.user, activePage: 'nasiya-' + req.query.stage, subPage: req.query.stage }));
 app.get('/design-system', requireAuth, (req, res) => res.render('design-system/index', { user: req.session.user, activePage: 'design-system' }));
 
 app.get('/settings', requireAuth, async (req, res) => {
@@ -113,8 +124,25 @@ const PORT = process.env.PORT || 3000;
 const runMigrations = require('./db-migrate');
 const prisma = require('./config/database');
 
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
+
+wss.on('connection', (ws) => {
+  ws.on('error', console.error);
+});
+
+// Broadcaster to all connected clients
+app.set('wss', wss);
+app.set('broadcast', (data) => {
+  wss.clients.forEach((client) => {
+    if (client.readyState === 1 /* WebSocket.OPEN */) {
+      client.send(JSON.stringify(data));
+    }
+  });
+});
+
 runMigrations(prisma).then(() => {
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`
   ╔══════════════════════════════════════╗
   ║   DESCO CRM — Running on :${PORT}     ║
@@ -123,9 +151,9 @@ runMigrations(prisma).then(() => {
 }).catch(err => {
   console.error('Migration xatosi:', err);
   // Migratsiya muvaffaqiyatsiz bo'lsa ham server'ni ishga tushiramiz
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`DESCO CRM — Running on :${PORT} (migration errors ignored)`);
   });
 });
 
-module.exports = app;
+module.exports = { app, server };

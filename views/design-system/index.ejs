@@ -1,8 +1,8 @@
-<%- include('../layouts/base', {
+<%- include('../layouts/header', {
   title: 'Design System — DESCO CRM',
   activePage: 'design-system',
-  user: user,
-  body: `
+  user: user}) %>
+
 <div class="page-header">
   <div>
     <h1>Design System</h1>
@@ -149,8 +149,7 @@ function toggleThemeSystem() {
   const next = current === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('crm-theme', next);
-  showToast('Mavzu muvaffaqiyatli o\\'zgartirildi!', 'info');
+  showToast('Mavzu muvaffaqiyatli o\'zgartirildi!', 'info');
 }
 </script>
-`
-}) %>
+<%- include('../layouts/footer') %>

@@ -35,10 +35,18 @@ router.get('/', async (req, res, next) => {
       } catch(e) { /* ignore, show all */ }
     }
 
+    if (req.user && req.user.role !== 'admin') {
+      where.OR = [
+        { managerId: req.userId },
+        { managerId: null },
+        { stage: { name: { contains: 'Yangi', mode: 'insensitive' } } }
+      ]
+    }
+
     let deals = await prisma.deal.findMany({
       where,
       include: {
-        client: { select: { id: true, name: true, company: true, phone: true } },
+        client: { select: { id: true, name: true, company: true, phone: true, city: true } },
         manager: managerSelect,
         stage: stageSelect
       },
@@ -56,7 +64,7 @@ router.get('/:id', async (req, res, next) => {
     const deal = await prisma.deal.findUnique({
       where: { id: Number(req.params.id) },
       include: {
-        client: { select: { id: true, name: true, company: true, phone: true } },
+        client: { select: { id: true, name: true, company: true, phone: true, city: true } },
         manager: managerSelect,
         stage: stageSelect,
         tasks: true,
@@ -68,6 +76,16 @@ router.get('/:id', async (req, res, next) => {
       }
     })
     if (!deal) return res.status(404).json({ message: 'Sdelka topilmadi' })
+    if (!deal.managerId) {
+      await prisma.deal.update({
+        where: { id: deal.id },
+        data: { managerId: req.userId }
+      });
+      deal.managerId = req.userId;
+      const broadcast = req.app.get('broadcast');
+      if (broadcast) broadcast({ type: 'deal_updated', dealId: deal.id, managerId: req.userId });
+    }
+
     if (!deal.activities) deal.activities = []
     res.json(deal)
   } catch (error) { next(error) }
@@ -84,14 +102,14 @@ router.post('/', async (req, res, next) => {
   try {
     const {
       productName, amount, paidAmount, status, notes, clientId, deadline, stageId, pipelineId,
-      contactName, contactPhone, contactEmail, companyName, companyAddress
+      contactName, contactPhone, contactEmail, companyName, companyAddress, city, costPrice
     } = req.body
     if (!productName) return res.status(400).json({ message: 'Mahsulot nomi majburiy' })
 
     let resolvedClientId = clientId ? Number(clientId) : null
 
     if (!resolvedClientId) {
-      const hasQuickAddFields = [contactName, contactPhone, contactEmail, companyName, companyAddress]
+      const hasQuickAddFields = [contactName, contactPhone, contactEmail, companyName, companyAddress, city]
         .some(v => v !== undefined && v !== null && String(v).trim() !== '')
 
       if (hasQuickAddFields) {
@@ -99,6 +117,7 @@ router.post('/', async (req, res, next) => {
           data: {
             name: (contactName && contactName.trim()) || (companyName && companyName.trim()) || "Noma'lum mijoz",
             phone: contactPhone || null,
+            city: city || null,
             email: contactEmail || null,
             company: companyName || null,
             companyAddress: companyAddress || null,
@@ -114,30 +133,56 @@ router.post('/', async (req, res, next) => {
         productName,
         amount: amount ? Number(amount) : 0,
         paidAmount: paidAmount ? Number(paidAmount) : 0,
+        costPrice: costPrice ? Number(costPrice) : 0,
         status: status || 'new',
         notes: notes || null,
-        deadline: deadline ? new Date(deadline) : null,
+        deadline: (deadline && !isNaN(new Date(deadline))) ? new Date(deadline) : null,
         clientId: resolvedClientId,
         managerId: req.userId,
         stageId: stageId ? Number(stageId) : null,
         pipelineId: pipelineId ? Number(pipelineId) : null
       },
       include: {
-        client: { select: { id: true, name: true, company: true } },
+        client: { select: { id: true, name: true, company: true, phone: true, city: true } },
         manager: managerSelect,
         stage: stageSelect
       }
     })
 
     await logActivity(deal.id, req.userId, 'Sdelka yaratildi', `"${deal.productName}" sdelkasi yaratildi`)
+    
+    const broadcast = req.app.get('broadcast');
+    if (broadcast) broadcast({ type: 'deal_updated', dealId: deal.id });
+    
     res.status(201).json(deal)
+  } catch (error) { next(error) }
+})
+
+// Claim a deal
+router.post('/:id/claim', async (req, res, next) => {
+  try {
+    const existing = await prisma.deal.findUnique({ where: { id: Number(req.params.id) }, include: { stage: true } })
+    if (!existing) return res.status(404).json({ message: 'Sdelka topilmadi' })
+
+    // Only allow claiming if it has no manager OR it's in a stage named "Yangi"
+    const isNewStage = existing.stage && existing.stage.name.toLowerCase().includes('yangi')
+    if (existing.managerId === null || isNewStage) {
+      const updated = await prisma.deal.update({
+        where: { id: Number(req.params.id) },
+        data: { managerId: req.userId }
+      })
+      await logActivity(updated.id, req.userId, 'Sdelka o\'zlashtirildi', `Sdelka menejerga biriktirildi`)
+      return res.json(updated)
+    }
+
+    return res.status(400).json({ message: 'Bu sdelka allaqachon boshqa menejerga tegishli' })
   } catch (error) { next(error) }
 })
 
 // Update deal
 router.patch('/:id', async (req, res, next) => {
   try {
-    const { productName, amount, paidAmount, status, notes, clientId, deadline, managerId, stageId } = req.body
+    const { productName, amount, paidAmount, status, notes, clientId, deadline, managerId, stageId, costPrice } = req.body
 
     const existing = await prisma.deal.findUnique({ where: { id: Number(req.params.id) } })
     if (!existing) return res.status(404).json({ message: 'Sdelka topilmadi' })
@@ -146,10 +191,11 @@ router.patch('/:id', async (req, res, next) => {
     if (productName !== undefined) data.productName = productName
     if (amount !== undefined) data.amount = Number(amount)
     if (paidAmount !== undefined) data.paidAmount = Number(paidAmount)
+    if (costPrice !== undefined) data.costPrice = Number(costPrice) || 0
     if (status !== undefined) data.status = status
     if (notes !== undefined) data.notes = notes
     if (clientId !== undefined) data.clientId = clientId ? Number(clientId) : null
-    if (deadline !== undefined) data.deadline = deadline ? new Date(deadline) : null
+    if (deadline !== undefined) data.deadline = (deadline && !isNaN(new Date(deadline))) ? new Date(deadline) : null
     if (managerId !== undefined) data.managerId = managerId ? Number(managerId) : null
     if (stageId !== undefined) data.stageId = stageId ? Number(stageId) : null
 
@@ -157,7 +203,7 @@ router.patch('/:id', async (req, res, next) => {
       where: { id: Number(req.params.id) },
       data,
       include: {
-        client: { select: { id: true, name: true, company: true } },
+        client: { select: { id: true, name: true, company: true, phone: true, city: true } },
         manager: managerSelect,
         stage: stageSelect
       }
@@ -170,6 +216,9 @@ router.patch('/:id', async (req, res, next) => {
     } else if (Object.keys(data).length > 0) {
       await logActivity(deal.id, req.userId, 'Sdelka yangilandi', Object.keys(data).join(', ') + " o'zgartirildi")
     }
+
+    const broadcast = req.app.get('broadcast');
+    if (broadcast) broadcast({ type: 'deal_updated', dealId: deal.id });
 
     res.json(deal)
   } catch (error) {
@@ -215,7 +264,7 @@ router.patch('/:id/stage', async (req, res, next) => {
       const unchanged = await prisma.deal.findUnique({
         where: { id },
         include: {
-          client: { select: { id: true, name: true, company: true } },
+          client: { select: { id: true, name: true, company: true, phone: true, city: true } },
           manager: managerSelect,
           stage: stageSelect
         }
@@ -224,11 +273,31 @@ router.patch('/:id/stage', async (req, res, next) => {
     }
 
     const deal = await prisma.$transaction(async (tx) => {
+      let finalStageId = newStageId;
+      let finalPipelineId = existing.pipelineId;
+      
+      // Automation: Nasiya
+      if (newStage && newStage.name.toLowerCase().includes('nasiya')) {
+        const nasiyaPipeline = await tx.pipeline.findFirst({
+          where: { name: { contains: 'nasiya', mode: 'insensitive' } },
+          include: { stages: { orderBy: { order: 'asc' } } }
+        });
+        if (nasiyaPipeline && nasiyaPipeline.stages.length > 0 && nasiyaPipeline.id !== existing.pipelineId) {
+          finalStageId = nasiyaPipeline.stages[0].id;
+          finalPipelineId = nasiyaPipeline.id;
+        }
+      }
+
+      let finalManagerId = existing.managerId;
+      if (!finalManagerId) {
+        finalManagerId = req.userId;
+      }
+
       const updated = await tx.deal.update({
         where: { id },
-        data: { stageId: newStageId },
+        data: { stageId: finalStageId, pipelineId: finalPipelineId, managerId: finalManagerId },
         include: {
-          client: { select: { id: true, name: true, company: true } },
+          client: { select: { id: true, name: true, company: true, phone: true, city: true } },
           manager: managerSelect,
           stage: stageSelect
         }
@@ -236,11 +305,30 @@ router.patch('/:id/stage', async (req, res, next) => {
       await tx.activityLog.create({
         data: {
           action: "Bosqich o'zgartirildi",
-          details: `${existing.stage?.name || 'Bosqichsiz'} → ${newStage?.name || 'Bosqichsiz'}`,
+          details: `${existing.stage?.name || 'Bosqichsiz'} → ${updated.stage?.name || 'Bosqichsiz'}`,
           dealId: id,
           userId: req.userId
         }
       })
+
+      // Automation: Qayta aloqa
+      if (updated.stage && updated.stage.name.toLowerCase().includes('qayta aloqa')) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        await tx.task.create({
+          data: {
+            title: (existing.productName || 'Sdelka') + " bo'yicha qayta aloqa",
+            description: "Avtomatik yaratilgan vazifa: Mijoz bilan qayta aloqaga chiqish",
+            dueDate: tomorrow,
+            dealId: id,
+            assignedToId: req.userId
+          }
+        });
+      }
+
+      const broadcast = req.app.get('broadcast');
+      if (broadcast) broadcast({ type: 'deal_updated', dealId: updated.id });
+
       return updated
     })
 
@@ -257,6 +345,10 @@ router.delete('/:id', async (req, res, next) => {
     await prisma.task.deleteMany({ where: { dealId: Number(req.params.id) } })
     await prisma.activityLog.deleteMany({ where: { dealId: Number(req.params.id) } })
     await prisma.deal.delete({ where: { id: Number(req.params.id) } })
+    
+    const broadcast = req.app.get('broadcast');
+    if (broadcast) broadcast({ type: 'deal_deleted', dealId: Number(req.params.id) });
+    
     res.json({ message: "Sdelka o'chirildi" })
   } catch (error) {
     if (error.code === 'P2025') return res.status(404).json({ message: 'Sdelka topilmadi' })
@@ -287,5 +379,78 @@ router.post('/:id/activity', async (req, res, next) => {
     res.status(201).json(activity)
   } catch (error) { next(error) }
 })
+
+// Get installments
+router.get('/:id/installments', async (req, res, next) => {
+  try {
+    const installments = await prisma.installment.findMany({
+      where: { dealId: Number(req.params.id) },
+      orderBy: { dueDate: 'asc' }
+    });
+    res.json(installments);
+  } catch (error) { next(error); }
+});
+
+// Save/replace installments
+router.post('/:id/installments', async (req, res, next) => {
+  try {
+    const dealId = Number(req.params.id);
+    const { installments } = req.body;
+    
+    const result = await prisma.$transaction(async (tx) => {
+      // Clear old installments and old auto-generated tasks
+      await tx.installment.deleteMany({ where: { dealId } });
+      await tx.task.deleteMany({
+        where: {
+          dealId,
+          title: { startsWith: "To'lov eslatmasi" }
+        }
+      });
+      
+      const created = [];
+      if (Array.isArray(installments)) {
+        for (const inst of installments) {
+          let dueDate = new Date(inst.dueDate);
+          if (isNaN(dueDate.getTime())) {
+            dueDate = new Date();
+            // Defaulting to 1 month ahead if invalid date was passed
+            dueDate.setMonth(dueDate.getMonth() + 1);
+          }
+          const item = await tx.installment.create({
+            data: {
+              dealId,
+              dueDate: dueDate,
+              amount: Number(inst.amount) || 0,
+              paid: Boolean(inst.paid),
+              productName: inst.productName || null,
+              month: inst.month || null,
+              notes: inst.notes || null
+            }
+          });
+          created.push(item);
+
+          // 3 kun oldingi avtomatlashtirilgan eslatma yaratish (agar to'lanmagan bo'lsa)
+          if (!inst.paid) {
+            const taskDueDate = new Date(dueDate);
+            taskDueDate.setDate(taskDueDate.getDate() - 3);
+            
+            await tx.task.create({
+              data: {
+                title: `To'lov eslatmasi (Nasiya)`,
+                description: `Ushbu sdelka uchun to'lov muddati: ${dueDate.toLocaleDateString('uz-UZ')}. To'lov summasi: ${inst.amount} so'm. Mahsulot: ${inst.productName || 'Noma\'lum'}`,
+                dueDate: taskDueDate,
+                assignedToId: req.userId,
+                dealId: dealId,
+                priority: 'high'
+              }
+            });
+          }
+        }
+      }
+      return created;
+    });
+    res.json(result);
+  } catch (error) { next(error); }
+});
 
 module.exports = router

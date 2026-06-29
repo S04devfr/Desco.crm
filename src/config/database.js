@@ -4,7 +4,8 @@ const { PrismaClient } = require('@prisma/client');
 // Keep this list in sync with prisma/schema.prisma model names (lowerCamelCase).
 const EXPECTED_MODELS = [
   'user', 'client', 'pipeline', 'pipelineStage', 'deal',
-  'activityLog', 'expense', 'task', 'companySettings'
+  'activityLog', 'expense', 'task', 'companySettings',
+  'installment', 'shopir', 'ishonchFilial'
 ];
 
 // Query methods we stub on a "broken" model delegate so any call site
